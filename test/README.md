@@ -1,0 +1,284 @@
+# Test Suite Documentation
+
+This directory contains comprehensive unit tests for the C++ HTTP Server implementation using Google Test framework.
+
+## Overview
+
+- **Total Test Cases**: 86 tests across 6 test suites (all passing)
+- **Testing Framework**: Google Test (gtest)
+- **Coverage**: Core HTTP server functionality including request parsing, response generation, server configuration, thread pool management, security testing, performance validation, and comprehensive HTTP/1.1 protocol compliance including chunked transfer encoding
+
+## Quick Start
+
+### Running All Tests
+```bash
+# Using the build script (recommended)
+./scripts/build.sh debug --tests
+
+# Or manually with CMake
+mkdir -p build && cd build
+cmake -DBUILD_TESTING=ON ..
+cmake --build .
+./test_runner
+
+# Or build with debug configuration (automatically enables testing)
+cmake -DCMAKE_BUILD_TYPE=Debug ..
+cmake --build .
+./test_runner
+```
+
+### Running Specific Test Suites
+```bash
+# Run only HttpServerTest suite
+./test_runner --gtest_filter="HttpServerTest.*"
+
+# Run only HttpRequestTest suite  
+./test_runner --gtest_filter="HttpRequestTest.*"
+
+# Run only HttpResponseTest suite
+./test_runner --gtest_filter="HttpResponseTest.*"
+
+# Run only SecurityTest suite
+./test_runner --gtest_filter="SecurityTest.*"
+
+# Run only PerformanceTest suite
+./test_runner --gtest_filter="PerformanceTest.*"
+
+# Run only HttpProtocolTest suite
+./test_runner --gtest_filter="HttpProtocolTest.*"
+```
+
+### Running Individual Tests
+```bash
+# Run a specific test
+./test_runner --gtest_filter="HttpServerTest.ServerConfigDefaults"
+
+# Run tests matching a pattern
+./test_runner --gtest_filter="*Config*"
+```
+
+## Test Suites
+
+### 1. HttpServerTest (22 tests) 
+**File**: `test_server.cpp` 
+
+Tests the core HTTP server functionality, configuration management, and thread pool operations.
+
+#### Configuration Tests (7 tests)
+- `ServerConfigDefaults` - Validates default server configuration values
+- `ServerConfigFromJson` - Tests JSON configuration file parsing and loading
+- `ServerConfigToJson` - Tests configuration serialization to JSON format
+- `ConfigurationUpdate` - Tests runtime configuration updates
+- `ConfigFileHandling` - Tests reading configuration from file
+- `ConfigFileNotFound` - Tests handling of missing configuration files
+- `InvalidJsonConfig` - Tests error handling for malformed JSON configuration
+
+#### Server Lifecycle Tests (4 tests)
+- `ServerCreation` - Tests HTTP server instantiation and initialization
+- `RouteRegistration` - Tests adding and managing HTTP routes
+- `MultipleRouteTypes` - Tests registration of different HTTP method routes
+- `MiddlewareRegistration` - Tests middleware pipeline setup and registration
+
+#### Static File & MIME Tests (3 tests)
+- `StaticFileConfiguration` - Tests static file serving configuration
+- `MimeTypeConfiguration` - Tests MIME type mapping configuration
+- `DefaultMimeTypeInitialization` - Tests default MIME type setup
+
+#### Statistics Tests (2 tests)
+- `StatisticsInitialization` - Tests server statistics system initialization
+- `StatisticsJsonSerialization` - Tests statistics data serialization to JSON
+
+#### Thread Pool Tests (6 tests)
+- `ThreadPoolInitialization` - Tests thread pool creation and setup
+- `ThreadPoolTaskExecution` - Tests basic task execution in thread pool
+- `ThreadPoolTaskWithParameters` - Tests parameterized task execution
+- `ThreadPoolException` - Tests exception handling in thread pool tasks
+- `ThreadPoolShutdown` - Tests proper thread pool shutdown and cleanup
+- `ThreadPoolStoppedEnqueue` - Tests task submission to stopped thread pool
+
+### 2. HttpRequestTest (12 tests)
+**File**: `test_request.cpp` 
+
+Tests HTTP request parsing, validation, and data extraction functionality.
+
+#### Request Parsing Tests (4 tests)
+- `ParseSimpleGetRequest` - Tests parsing basic GET requests
+- `ParsePostRequestWithBody` - Tests parsing POST requests with body content
+- `ParseRequestWithQueryParams` - Tests URL query parameter extraction
+- `ParseDifferentHttpMethods` - Tests support for various HTTP methods (GET, POST, PUT, DELETE, etc.)
+
+#### Method Handling Tests (2 tests)
+- `MethodToStringConversion` - Tests converting HTTP method enums to strings
+- `StringToMethodConversion` - Tests parsing HTTP method strings to enums
+
+#### Header Processing Tests (2 tests)
+- `HeaderCaseInsensitivity` - Tests case-insensitive header name handling
+- `LargeHeaderValues` - Tests handling of headers with large values
+
+#### Connection & Validation Tests (4 tests)
+- `KeepAliveDetection` - Tests HTTP keep-alive connection detection
+- `InvalidRequests` - Tests error handling for malformed HTTP requests
+- `ToStringRoundTrip` - Tests request serialization and deserialization
+- `SpecialCharactersInPath` - Tests URL path handling with special characters
+
+### 3. HttpResponseTest (17 tests)
+**File**: `test_response.cpp` 
+
+Tests HTTP response generation, header management, and content handling.
+
+#### Response Construction Tests (3 tests)
+- `DefaultConstructor` - Tests default HTTP response initialization
+- `StatusConstructor` - Tests response creation with specific status codes
+- `SetAndGetStatus` - Tests status code setting and retrieval
+
+#### Header Management Tests (3 tests)
+- `HeaderManagement` - Tests adding, updating, and removing response headers
+- `HeaderCaseNormalization` - Tests header name case normalization
+- `SpecialHeaders` - Tests handling of special HTTP headers (Content-Length, etc.)
+
+#### Content & Body Tests (4 tests)
+- `BodyManagement` - Tests response body setting and retrieval
+- `ContentTypeHelpers` - Tests content type header management utilities
+- `LargeBodyHandling` - Tests handling of large response bodies
+- `EmptyBodyHandling` - Tests handling of empty response bodies
+
+#### File & MIME Tests (2 tests)
+- `FileContent` - Tests serving file content as HTTP response
+- `MimeTypeDetection` - Tests automatic MIME type detection for files
+
+#### Utility & Factory Tests (3 tests)
+- `StaticFactoryMethods` - Tests convenience methods for creating common responses
+- `StatusMessages` - Tests HTTP status code to message mapping
+- `FluentInterface` - Tests method chaining for response building
+
+#### Output & Serialization Tests (2 tests)
+- `HttpStringGeneration` - Tests conversion of response to HTTP protocol string
+- `ToStringDebugOutput` - Tests debug string representation of responses
+
+### 4. SecurityTest (9 tests)
+**File**: `test_security.cpp`
+
+Tests security aspects of the HTTP server including protection against common vulnerabilities.
+
+#### Path & Request Security Tests (3 tests)
+- `PathTraversalPrevention` - Tests protection against directory traversal attacks
+- `RequestSizeLimits` - Tests enforcement of request size limits to prevent DoS
+- `HeaderInjectionPrevention` - Tests prevention of HTTP header injection attacks through CRLF validation
+
+#### Protocol Security Tests (3 tests)
+- `HttpMethodSecurity` - Tests handling of potentially dangerous HTTP methods
+- `UrlEncodingSecurity` - Tests proper URL encoding and decoding security
+- `ContentTypeValidation` - Tests validation of Content-Type headers
+
+#### Security Headers & Policies Tests (3 tests)
+- `SecurityHeaders` - Tests implementation of security-related HTTP headers
+- `CookieSecurity` - Tests secure cookie handling and attributes
+- `RateLimitingConcept` - Tests rate limiting mechanisms and concepts
+
+### 5. PerformanceTest (10 tests)
+**File**: `test_performance.cpp` 
+
+Tests performance, concurrency, and scalability aspects of the HTTP server.
+
+#### Concurrency Tests (3 tests)
+- `ConcurrentRequestParsing` - Tests parsing 1000 concurrent HTTP requests
+- `ConcurrentStatisticsUpdates` - Tests thread-safe statistics updates
+- `ThreadPoolStressTest` - Tests thread pool under high concurrent load
+
+#### Memory & Resource Tests (3 tests)
+- `MemoryUsageUnderLoad` - Tests memory usage patterns under sustained load
+- `MemoryFragmentation` - Tests memory allocation patterns and fragmentation
+- `LargeResponseGeneration` - Tests generation of large HTTP responses
+
+#### Configuration & Error Handling Tests (2 tests)
+- `RapidConfigurationUpdates` - Tests rapid configuration changes
+- `MalformedHttpParsing` - Tests performance of parsing malformed HTTP data
+
+#### Stress & Timeout Tests (2 tests)
+- `BinaryDataHandling` - Tests handling of large binary data in requests
+- `TimeoutSimulation` - Tests timeout handling and resource cleanup
+
+### 6. HttpProtocolTest (16 tests)
+**File**: `test_http_protocol.cpp` 
+
+Tests advanced HTTP/1.1 protocol compliance including chunked encoding, compression, and protocol-specific features. All chunked transfer encoding features are fully implemented and tested.
+
+#### Chunked Transfer Encoding Tests (4 tests)
+- `ChunkedEncodingParsing` - Tests parsing of chunked transfer encoding
+- `ChunkedEncodingWithEmptyChunks` - Tests handling of empty chunks
+- `ChunkedEncodingWithExtensions` - Tests chunk extensions support
+- `ChunkedEncodingResponse` - Tests generation of chunked responses
+
+#### Compression & Encoding Tests (3 tests)
+- `GzipCompressionSupport` - Tests gzip compression and decompression utilities
+- `ContentEncodingHeaders` - Tests Content-Encoding header handling
+- `AcceptEncodingProcessing` - Tests Accept-Encoding header parsing
+
+#### HTTP/1.1 Protocol Features Tests (4 tests)
+- `PersistentConnections` - Tests HTTP/1.1 keep-alive connection handling
+- `TransferEncodingPriority` - Tests Transfer-Encoding vs Content-Length priority
+- `MultipleTransferEncodings` - Tests multiple transfer encoding values
+- `HostHeaderRequired` - Tests HTTP/1.1 Host header requirement validation
+
+#### Advanced Protocol Tests (5 tests)
+- `UpgradeHeader` - Tests protocol upgrade mechanisms (WebSocket handshake)
+- `ExpectContinue` - Tests Expect: 100-continue header support
+- `RangeRequests` - Tests HTTP range request and partial content support
+- `TrailerHeaders` - Tests trailer headers with chunked encoding
+- `HttpVersionValidation` - Tests HTTP version validation and compatibility
+
+**Note**: All tests are currently passing.
+
+
+## Test Data and Fixtures
+
+The tests use various mock data and fixtures:
+
+- **Sample HTTP Requests**: GET, POST, PUT, DELETE requests with different headers and bodies
+- **Configuration Files**: Valid and invalid JSON configuration samples
+- **Static Files**: Mock file content for testing file serving functionality
+- **Error Scenarios**: Malformed requests, invalid configurations, network errors
+
+## Dependencies
+
+- **Google Test**: Unit testing framework (automatically fetched by CMake)
+- **nlohmann/json**: JSON parsing and serialization  
+- **Boost.Asio**: Networking and I/O operations
+- **ZLIB**: Compression support for testing
+- **C++20**: Modern C++ features used throughout the codebase
+
+All dependencies except the C++ compiler are automatically fetched and configured by CMake.
+
+## Coverage Areas
+
+The test suite validates:
+
+**HTTP Protocol Compliance**: Request/response parsing and generation  
+**Configuration Management**: JSON config loading, validation, and updates  
+**Concurrency**: Thread pool operations and thread safety  
+**Error Handling**: Graceful handling of invalid inputs and edge cases  
+**File Operations**: Static file serving and MIME type detection  
+**Performance**: Large data handling and resource management  
+**Standards Compliance**: HTTP headers, status codes, and method handling  
+
+## Adding New Tests
+
+When adding new test cases:
+
+1. Follow the existing naming convention: `TestSuite.TestName`
+2. Use descriptive test names that explain what is being validated
+3. Include both positive and negative test cases
+4. Test edge cases and error conditions
+5. Keep tests isolated and independent
+6. Use appropriate Google Test assertions (`EXPECT_*`, `ASSERT_*`)
+
+## Continuous Integration
+
+These tests are automatically executed in the CI/CD pipeline on:
+- Every pull request
+- Every push to main branch
+- Nightly builds across multiple platforms (Ubuntu, macOS)
+- Multiple compiler configurations (GCC, Clang)
+
+
+---
