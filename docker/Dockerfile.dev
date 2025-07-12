@@ -1,0 +1,59 @@
+# Development Dockerfile for Modern C++ HTTP Server
+FROM ubuntu:22.04
+
+# Avoid interactive prompts
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install development dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    cmake \
+    git \
+    gdb \
+    valgrind \
+    clang \
+    clang-tools \
+    clang-format \
+    cppcheck \
+    libboost-all-dev \
+    libgtest-dev \
+    pkg-config \
+    wget \
+    curl \
+    vim \
+    nano \
+    htop \
+    strace \
+    ltrace \
+    tree \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set work directory
+WORKDIR /app
+
+# Copy project files
+COPY . .
+
+# Make scripts executable
+RUN chmod +x scripts/*.sh
+
+# Create development user
+RUN useradd -m -s /bin/bash developer && \
+    chown -R developer:developer /app
+
+# Switch to development user
+USER developer
+
+# Expose HTTP port and debugger port
+EXPOSE 8080 7777
+
+# Set development environment variables
+ENV CMAKE_BUILD_TYPE=Debug
+ENV ASAN_OPTIONS=detect_leaks=1:abort_on_error=1
+ENV UBSAN_OPTIONS=print_stacktrace=1:abort_on_error=1
+
+# Build in debug mode by default
+RUN ./scripts/build.sh debug --clean
+
+# Default command for development
+CMD ["./scripts/run.sh", "--debug"] 
