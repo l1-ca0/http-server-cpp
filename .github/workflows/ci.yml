@@ -1,0 +1,329 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  BUILD_TYPE: Release
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cppcheck clang-format-14
+    
+    - name: Run cppcheck
+      run: |
+        cppcheck --enable=all --error-exitcode=1 --suppressions-list=<(echo "missingIncludeSystem") \
+          --inline-suppr src/ include/ 2>&1 | tee cppcheck-report.txt
+    
+    - name: Check code formatting
+      run: |
+        find src include test -name "*.cpp" -o -name "*.hpp" | xargs clang-format-14 --dry-run --Werror
+
+  build:
+    needs: quality
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        build_type: [Debug, Release]
+        compiler: [gcc, clang]
+        include:
+          - os: ubuntu-latest
+            compiler: gcc
+            cc: gcc-11
+            cxx: g++-11
+          - os: ubuntu-latest  
+            compiler: clang
+            cc: clang-14
+            cxx: clang++-14
+          - os: macos-latest
+            compiler: gcc
+            cc: gcc-12
+            cxx: g++-12
+          - os: macos-latest
+            compiler: clang
+            cc: clang
+            cxx: clang++
+
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Cache dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cache/vcpkg
+          ~/vcpkg
+          build/_deps
+        key: ${{ runner.os }}-${{ matrix.compiler }}-${{ hashFiles('CMakeLists.txt') }}
+
+    - name: Install dependencies (Ubuntu)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential \
+          cmake \
+          libboost-all-dev \
+          ${{ matrix.cc }} \
+          ${{ matrix.cxx }} \
+          valgrind \
+          ninja-build
+
+    - name: Install dependencies (macOS)
+      if: matrix.os == 'macos-latest'
+      run: |
+        brew update
+        brew install cmake boost ninja
+        if [ "${{ matrix.compiler }}" = "gcc" ]; then
+          brew install gcc@12
+        fi
+
+    - name: Configure CMake
+      env:
+        CC: ${{ matrix.cc }}
+        CXX: ${{ matrix.cxx }}
+      run: |
+        cmake -B build \
+          -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+          -DBUILD_TESTING=ON \
+          -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+          -G Ninja
+
+    - name: Build
+      run: cmake --build build --config ${{ matrix.build_type }} --parallel
+
+    - name: Run tests
+      working-directory: build
+      run: |
+        ctest --output-on-failure --parallel --build-config ${{ matrix.build_type }}
+        
+    - name: Run memory checks (Ubuntu Debug)
+      if: matrix.os == 'ubuntu-latest' && matrix.build_type == 'Debug'
+      working-directory: build
+      run: |
+        valgrind --leak-check=full --error-exitcode=1 ./test_runner
+
+    - name: Performance benchmark
+      if: matrix.build_type == 'Release'
+      run: |
+        timeout 30s ./build/http_server &
+        SERVER_PID=$!
+        sleep 2
+        
+        curl -f http://localhost:8080/health || echo "Health check failed"
+        
+        if command -v wrk >/dev/null 2>&1; then
+          wrk -t2 -c10 -d10s http://localhost:8080/ || echo "Load test completed"
+        fi
+        
+        kill $SERVER_PID 2>/dev/null || true
+
+    - name: Upload build artifacts
+      if: matrix.build_type == 'Release'
+      uses: actions/upload-artifact@v3
+      with:
+        name: http-server-${{ matrix.os }}-${{ matrix.compiler }}
+        path: |
+          build/http_server
+          config/
+          public/
+
+  docker:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Log in to GitHub Container Registry
+      if: github.event_name != 'pull_request'
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: |
+          ghcr.io/${{ github.repository }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=raw,value=latest,enable={{is_default_branch}}
+
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: docker/Dockerfile
+        platforms: linux/amd64,linux/arm64
+        push: ${{ github.event_name != 'pull_request' }}
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Test Docker image
+      run: |
+        docker run --rm -d -p 8080:8080 --name test-server \
+          ghcr.io/${{ github.repository }}:${{ github.ref_name }} || \
+          docker run --rm -d -p 8080:8080 --name test-server \
+          $(echo "${{ steps.meta.outputs.tags }}" | head -n1)
+        
+        sleep 5
+        curl -f http://localhost:8080/health
+        docker stop test-server
+
+  security:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+
+    - name: Upload Trivy scan results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build, docker, security]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Download artifacts
+      uses: actions/download-artifact@v3
+      with:
+        path: artifacts
+
+    - name: Create release archives
+      run: |
+        for dir in artifacts/*/; do
+          name=$(basename "$dir")
+          (cd "$dir" && tar -czf "../../${name}.tar.gz" .)
+        done
+
+    - name: Generate changelog
+      id: changelog
+      run: |
+        if [ -f CHANGELOG.md ]; then
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          cat CHANGELOG.md >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+        else
+          echo "changelog=Release ${{ github.ref_name }}" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        body: ${{ steps.changelog.outputs.changelog }}
+        files: '*.tar.gz'
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  docs:
+    if: github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install LaTeX
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y texlive-latex-base texlive-latex-extra texlive-fonts-recommended
+
+    - name: Build documentation
+      run: |
+        mkdir -p docs
+        cp README.md docs/
+        if [ -f design_document.tex ]; then
+          cd docs
+          pdflatex ../design_document.tex
+          pdflatex ../design_document.tex
+        fi
+
+    - name: Setup Pages
+      uses: actions/configure-pages@v3
+
+    - name: Upload documentation
+      uses: actions/upload-pages-artifact@v2
+      with:
+        path: docs
+
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v2
+
+  notify:
+    if: always()
+    needs: [quality, build, docker, security]
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Notify on success
+      if: needs.build.result == 'success' && needs.docker.result == 'success'
+      run: |
+        echo "CI/CD Pipeline completed successfully!"
+        echo "Build: ${{ needs.build.result }}"
+        echo "Docker: ${{ needs.docker.result }}"
+        echo "Security: ${{ needs.security.result }}"
+
+    - name: Notify on failure
+      if: needs.build.result == 'failure' || needs.docker.result == 'failure'
+      run: |
+        echo "CI/CD Pipeline failed!"
+        echo "Build: ${{ needs.build.result }}"
+        echo "Docker: ${{ needs.docker.result }}"
+        echo "Security: ${{ needs.security.result }}"
+        exit 1

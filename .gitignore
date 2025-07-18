@@ -1,13 +1,63 @@
 # Build directories
 build/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+compile_commands.json
 
 # Executables and binaries
 *.exe
 *.out
 *.app
+*.o
+*.obj
+*.a
+*.so
+*.dll
+*.dylib
+*.log
+
+# Test binaries
+/test_runner
+/http_server
 
 # OS-specific files
 .DS_Store
+Thumbs.db
 
 # Editor/project files
 .vscode/
+.idea/
+*.swp
+*~
+
+# Third-party/dependency folders
+third_party/
+_deps/
+
+# Package files
+*.tar.gz
+*.zip
+*.7z
+*.dmg
+*.pkg
+*.deb
+*.rpm
+
+# Docker
+
+dist/
+
+# LaTeX files
+*.tex
+*.aux
+*.log
+*.out
+*.toc
+*.bbl
+*.blg
+*.synctex.gz 
+.clang-format
+.clangd
+*.pdf
