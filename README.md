@@ -22,4 +22,16 @@ High-performance, memory-efficient HTTP/1.1 server built with modern C++20 and B
 - **HttpRequest** - HTTP/1.1 parser with validation
 - **HttpResponse** - Fluent response builder with compression
 
+## Documentation
+
+**[View Full Documentation →](DOCUMENTATION.md)**
+
+- **Quick Start** - Get running in minutes with examples
+- **API Reference** - Complete C++ API with code samples
+- **Configuration** - JSON config options and programmatic setup
+- **Test** - Unit tests, benchmarking, and validation ([test/README.md](test/README.md))
+- **Deployment** - Docker, systemd, reverse proxy setup
+- **Development** - Project structure and dependencies
+- **Limitations** - Limitations on features and protocol support 
+
 ---
