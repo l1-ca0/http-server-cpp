@@ -4,9 +4,9 @@ This directory contains comprehensive unit tests for the C++ HTTP Server impleme
 
 ## Overview
 
-- **Total Test Cases**: 86 tests across 6 test suites (all passing)
+- **Total Test Cases**: 97 tests across 7 test suites (all passing)
 - **Testing Framework**: Google Test (gtest)
-- **Coverage**: Core HTTP server functionality including request parsing, response generation, server configuration, thread pool management, security testing, performance validation, and comprehensive HTTP/1.1 protocol compliance including chunked transfer encoding
+- **Coverage**: Core HTTP server functionality including request parsing, response generation, server configuration, thread pool management, security testing, performance validation, comprehensive HTTP/1.1 protocol compliance including chunked transfer encoding, and full HTTPS/SSL support
 
 ## Quick Start
 
@@ -46,6 +46,9 @@ cmake --build .
 
 # Run only HttpProtocolTest suite
 ./test_runner --gtest_filter="HttpProtocolTest.*"
+
+# Run only HttpsServerTest suite
+./test_runner --gtest_filter="HttpsServerTest.*"
 ```
 
 ### Running Individual Tests
@@ -55,6 +58,12 @@ cmake --build .
 
 # Run tests matching a pattern
 ./test_runner --gtest_filter="*Config*"
+
+# Run only HTTPS-related tests
+./test_runner --gtest_filter="*Https*"
+
+# Run SSL-specific functionality tests
+./test_runner --gtest_filter="*Ssl*"
 ```
 
 ## Test Suites
@@ -229,31 +238,60 @@ Tests advanced HTTP/1.1 protocol compliance including chunked encoding, compress
 
 **Note**: All tests are currently passing.
 
+### 7. HttpsServerTest (11 tests)
+**File**: `test_https.cpp` 
+
+Tests HTTPS/SSL functionality including SSL context initialization, certificate handling, and encrypted connections.
+
+#### HTTPS Configuration Tests (4 tests)
+- `HttpsConfigurationParsing` - Tests parsing of HTTPS-specific configuration from JSON
+- `HttpsConfigurationSerialization` - Tests serialization of HTTPS configuration to JSON
+- `MixedHttpHttpsConfiguration` - Tests mixed HTTP and HTTPS server configuration
+- `HttpsDisabledConfiguration` - Tests server behavior when HTTPS is disabled
+
+#### SSL/TLS Infrastructure Tests (3 tests)
+- `HttpsServerInitialization` - Tests HTTPS server initialization with SSL context
+- `SslContextValidation` - Tests SSL context creation and certificate loading
+- `SslConnectionBasics` - Tests basic SSL connection handling and lifecycle
+
+#### HTTPS Features Tests (4 tests)
+- `HttpsStatisticsTracking` - Tests statistics collection for HTTPS connections
+- `HttpsConfigFileLoading` - Tests loading HTTPS configuration from external files
+- `HttpsRoutingBasics` - Tests HTTP routing functionality over SSL connections
+- `SslCipherConfiguration` - Tests SSL cipher suite configuration and validation
+
+**Dependencies**: Requires OpenSSL for SSL/TLS support and test certificates for validation.
+
 
 ## Test Data and Fixtures
 
 The tests use various mock data and fixtures:
 
 - **Sample HTTP Requests**: GET, POST, PUT, DELETE requests with different headers and bodies
-- **Configuration Files**: Valid and invalid JSON configuration samples
+- **HTTPS Test Certificates**: Self-signed certificates for SSL/TLS testing
+- **Configuration Files**: Valid and invalid JSON configuration samples including HTTPS settings
 - **Static Files**: Mock file content for testing file serving functionality
-- **Error Scenarios**: Malformed requests, invalid configurations, network errors
+- **Error Scenarios**: Malformed requests, invalid configurations, network errors, SSL handshake failures
 
 ## Dependencies
 
 - **Google Test**: Unit testing framework (automatically fetched by CMake)
 - **nlohmann/json**: JSON parsing and serialization  
 - **Boost.Asio**: Networking and I/O operations
+- **OpenSSL**: SSL/TLS support for HTTPS functionality
 - **ZLIB**: Compression support for testing
 - **C++20**: Modern C++ features used throughout the codebase
 
 All dependencies except the C++ compiler are automatically fetched and configured by CMake.
+
+**HTTPS Testing Requirements**: HTTPS tests require OpenSSL to be installed on the system. Test certificates are automatically generated in the `certs/` directory for development and testing purposes.
 
 ## Coverage Areas
 
 The test suite validates:
 
 **HTTP Protocol Compliance**: Request/response parsing and generation  
+**HTTPS/SSL Support**: Certificate handling, SSL context management, encrypted connections  
 **Configuration Management**: JSON config loading, validation, and updates  
 **Concurrency**: Thread pool operations and thread safety  
 **Error Handling**: Graceful handling of invalid inputs and edge cases  

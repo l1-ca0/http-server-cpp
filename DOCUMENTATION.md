@@ -61,6 +61,14 @@ using namespace http_server;
 int main() {
     // Create server with default config
     ServerConfig config;
+    config.port = 8080;
+    
+    // Enable HTTPS support
+    config.enable_https = true;
+    config.https_port = 8443;
+    config.ssl_certificate_path = "certs/server.crt";
+    config.ssl_private_key_path = "certs/server.key";
+    
     HttpServer server(config);
     
     // Add a simple route
@@ -79,7 +87,7 @@ int main() {
         return HttpResponse::json_response(users.dump());
     });
     
-    // Start server
+    // Start server (handles both HTTP and HTTPS)
     server.start(); // Blocks until shutdown
     
     return 0;
@@ -212,6 +220,12 @@ if (response.is_compressed()) {
 {
   "host": "0.0.0.0",
   "port": 8080,
+  "enable_https": true,
+  "https_port": 8443,
+  "ssl_certificate_path": "certs/server.crt",
+  "ssl_private_key_path": "certs/server.key",
+  "ssl_ciphers": "ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256",
+  "ssl_verify_client": false,
   "thread_pool_size": 4,
   "document_root": "./public",
   "max_connections": 1000,
@@ -254,6 +268,15 @@ if (response.is_compressed()) {
 ServerConfig config;
 config.host = "127.0.0.1";
 config.port = 8080;
+
+// HTTPS Configuration
+config.enable_https = true;
+config.https_port = 8443;
+config.ssl_certificate_path = "certs/server.crt";
+config.ssl_private_key_path = "certs/server.key";
+config.ssl_ciphers = "ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256";
+config.ssl_verify_client = false;
+
 config.thread_pool_size = 4;
 config.document_root = "./public";
 config.serve_static_files = true;
@@ -270,7 +293,13 @@ HttpServer server(config);
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | host | string | "0.0.0.0" | Server bind address |
-| port | int | 8080 | Server port |
+| port | int | 8080 | HTTP server port |
+| enable_https | bool | false | Enable HTTPS/SSL support |
+| https_port | int | 8443 | HTTPS server port |
+| ssl_certificate_path | string | "" | Path to SSL certificate file (.crt or .pem) |
+| ssl_private_key_path | string | "" | Path to SSL private key file (.key or .pem) |
+| ssl_ciphers | string | Modern cipher suite | SSL/TLS cipher configuration |
+| ssl_verify_client | bool | false | Require client certificate verification |
 | thread_pool_size | int | 4 | Thread pool size (currently unused) |
 | document_root | string | "./public" | Static files directory |
 | max_connections | int | 1000 | Maximum concurrent connections |
@@ -295,6 +324,7 @@ HttpServer server(config);
 | SecurityTest      | Security validation  | Path traversal, request size, header injection, security headers         |
 | PerformanceTest   | Performance testing  | Concurrency, memory usage, stress, rapid config, malformed requests      |
 | HttpProtocolTest  | HTTP/1.1 compliance  | Chunked encoding, compression, protocol edge cases                       |
+| HttpsServerTest   | HTTPS/SSL testing    | SSL context, certificates, encrypted connections, HTTPS configuration    |
 
 ### Running Tests
 
@@ -304,6 +334,12 @@ HttpServer server(config);
 
 # Run specific test suite
 ./build/test_runner --gtest_filter="HttpServerTest.*"
+
+# Run HTTPS tests
+./build/test_runner --gtest_filter="HttpsServerTest.*"
+
+# Run SSL-specific tests  
+./build/test_runner --gtest_filter="*Ssl*"
 
 # Run with detailed output
 ./build/test_runner --gtest_print_time=1
@@ -326,8 +362,13 @@ HttpServer server(config);
 curl http://localhost:8080/
 curl http://localhost:8080/api/status
 
+# Test HTTPS functionality  
+curl -k https://localhost:8443/
+curl -k https://localhost:8443/api/status
+
 # Test with headers
 curl -H "Accept-Encoding: gzip" http://localhost:8080/
+curl -k -H "Accept-Encoding: gzip" https://localhost:8443/
 
 # Test POST requests
 curl -X POST -d "test data" http://localhost:8080/api/echo
@@ -387,6 +428,7 @@ cpp-http-server/
 ├── include/         # Public header files
 │   ├── server.hpp
 │   ├── connection.hpp
+│   ├── ssl_connection.hpp
 │   ├── request.hpp
 │   ├── response.hpp
 │   ├── thread_pool.hpp
@@ -395,6 +437,7 @@ cpp-http-server/
 │   ├── main.cpp
 │   ├── server.cpp
 │   ├── connection.cpp
+│   ├── ssl_connection.cpp
 │   ├── request.cpp
 │   ├── response.cpp
 │   ├── thread_pool.cpp
@@ -405,9 +448,11 @@ cpp-http-server/
 │   ├── test_response.cpp
 │   ├── test_security.cpp
 │   ├── test_performance.cpp
-│   └── test_http_protocol.cpp
+│   ├── test_http_protocol.cpp
+│   └── test_https.cpp
 ├── config/          # JSON configuration files
 ├── public/          # Static files for serving
+├── certs/           # SSL certificates for HTTPS
 ├── scripts/         # Build, run, and benchmark scripts
 ├── docker/          # Docker and container configs
 └── CMakeLists.txt   # CMake build configuration
@@ -416,6 +461,7 @@ cpp-http-server/
 ### Dependencies
 
 - **Boost.Asio** - Asynchronous I/O operations
+- **OpenSSL** - SSL/TLS support for HTTPS functionality
 - **nlohmann/json** - JSON configuration and responses  
 - **Google Test** - Unit testing framework
 - **ZLIB** - Gzip compression support
@@ -441,6 +487,27 @@ The project uses modern CMake (3.20+) with:
 - Clear naming conventions
 
 ## Deployment
+
+### SSL Certificate Setup
+
+For HTTPS deployment, you'll need SSL certificates:
+
+```bash
+# Generate self-signed certificates for development/testing
+openssl req -x509 -newkey rsa:4096 -keyout server.key -out server.crt -days 365 -nodes
+
+# Or use Let's Encrypt for production
+certbot certonly --standalone -d your-domain.com
+
+# Configure paths in server config
+{
+  "enable_https": true,
+  "https_port": 8443,
+  "ssl_certificate_path": "/path/to/server.crt",
+  "ssl_private_key_path": "/path/to/server.key",
+  "ssl_ciphers": "ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256"
+}
+```
 
 ### Docker Support
 
@@ -479,15 +546,34 @@ WantedBy=multi-user.target
 
 ### Reverse Proxy Setup
 
-Example Nginx configuration:
+Example Nginx configuration for HTTP and HTTPS:
 
 ```nginx
+# HTTP server (redirect to HTTPS)
 server {
     listen 80;
     server_name example.com;
+    return 301 https://$server_name$request_uri;
+}
+
+# HTTPS server (proxy to backend)
+server {
+    listen 443 ssl http2;
+    server_name example.com;
+    
+    # SSL configuration (if terminating SSL at proxy)
+    ssl_certificate /path/to/ssl/cert.pem;
+    ssl_certificate_key /path/to/ssl/private.key;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384;
     
     location / {
+        # Proxy to HTTP backend (SSL termination at proxy)
         proxy_pass http://127.0.0.1:8080;
+        
+        # Or proxy to HTTPS backend (end-to-end encryption)
+        # proxy_pass https://127.0.0.1:8443;
+        
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -514,12 +600,14 @@ For production monitoring, consider:
 
 ### Security Considerations
 
-- Run behind reverse proxy for SSL/TLS termination
+- Configure HTTPS with proper SSL certificates for production
+- Run behind reverse proxy for additional security layers
 - Configure firewall rules
-- Set appropriate file permissions
+- Set appropriate file permissions for SSL certificates
 - Use non-root user for service
 - Implement rate limiting at proxy level
 - Regular security updates
+- Use strong cipher suites and disable weak protocols
 
 ## Limitations
 
@@ -527,8 +615,7 @@ This server has limitations compared to production servers:
 
 ### Protocol Support
 
-- **HTTP/1.1 Only** - No HTTP/2 or HTTP/3 support
-- **No SSL/TLS** - Requires reverse proxy for HTTPS
+- **HTTP/1.1 Only** - No HTTP/2 or HTTP/3 support  
 - **No WebSockets** - Real-time communication not supported
 
 ### HTTP/1.1 Feature Gaps
@@ -537,4 +624,10 @@ This server has limitations compared to production servers:
 - **No Range Requests** - Partial content delivery not implemented
 - **Basic Authentication** - No built-in auth schemes
 
-For production use, deploy behind a full-featured reverse proxy like Nginx or Apache.
+### HTTPS/SSL Limitations
+
+- **No HTTP/2 over TLS** - HTTPS uses HTTP/1.1 only
+- **No Advanced SSL Features** - Missing HSTS, certificate pinning, OCSP stapling
+- **Self-Signed Certificates** - Production deployments need proper CA-signed certificates
+
+For production use, consider deploying behind a full-featured reverse proxy like Nginx or Apache for advanced features.
