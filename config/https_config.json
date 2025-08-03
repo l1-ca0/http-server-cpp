@@ -1,7 +1,7 @@
 {
   "host": "0.0.0.0",
   "port": 8080,
-  "thread_pool_size": 8,
+  "thread_pool_size": 4,
   "document_root": "./public",
   "max_connections": 1000,
   "keep_alive_timeout": 30,
@@ -11,10 +11,9 @@
   "serve_static_files": true,
   "index_files": [
     "index.html",
-    "index.htm",
-    "default.html"
+    "index.htm"
   ],
-  "enable_https": false,
+  "enable_https": true,
   "https_port": 8443,
   "ssl_certificate_file": "./certs/server.crt",
   "ssl_private_key_file": "./certs/server.key",
@@ -36,33 +35,10 @@
   ],
   "mime_types": {
     "html": "text/html; charset=utf-8",
-    "htm": "text/html; charset=utf-8",
     "css": "text/css",
     "js": "application/javascript",
     "json": "application/json",
-    "xml": "application/xml",
-    "txt": "text/plain; charset=utf-8",
-    "md": "text/markdown; charset=utf-8",
     "png": "image/png",
-    "jpg": "image/jpeg",
-    "jpeg": "image/jpeg",
-    "gif": "image/gif",
-    "webp": "image/webp",
-    "svg": "image/svg+xml",
-    "ico": "image/x-icon",
-    "pdf": "application/pdf",
-    "zip": "application/zip",
-    "gz": "application/gzip",
-    "tar": "application/x-tar",
-    "mp4": "video/mp4",
-    "webm": "video/webm",
-    "mp3": "audio/mpeg",
-    "wav": "audio/wav",
-    "ogg": "audio/ogg",
-    "woff": "font/woff",
-    "woff2": "font/woff2",
-    "ttf": "font/ttf",
-    "otf": "font/otf",
-    "eot": "application/vnd.ms-fontobject"
+    "jpg": "image/jpeg"
   }
 }

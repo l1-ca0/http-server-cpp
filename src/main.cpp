@@ -263,9 +263,15 @@ int main(int argc, char* argv[]) {
         std::cout << "Starting server with configuration:" << std::endl;
         std::cout << "- Host: " << config.host << std::endl;
         std::cout << "- Port: " << config.port << std::endl;
+        if (config.enable_https) {
+            std::cout << "- HTTPS Port: " << config.https_port << std::endl;
+            std::cout << "- SSL Certificate: " << config.ssl_certificate_file << std::endl;
+            std::cout << "- SSL Private Key: " << config.ssl_private_key_file << std::endl;
+        }
         std::cout << "- Thread pool size: " << config.thread_pool_size << std::endl;
         std::cout << "- Document root: " << config.document_root << std::endl;
         std::cout << "- Static files: " << (config.serve_static_files ? "enabled" : "disabled") << std::endl;
+        std::cout << "- HTTPS: " << (config.enable_https ? "enabled" : "disabled") << std::endl;
         std::cout << "\nPress Ctrl+C to stop the server" << std::endl;
         
         // Start the server (blocks until stopped)

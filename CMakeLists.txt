@@ -29,6 +29,7 @@ endif()
 
 find_package(Threads REQUIRED)
 find_package(ZLIB REQUIRED)
+find_package(OpenSSL REQUIRED)
 
 include(FetchContent)
 FetchContent_Declare(
@@ -42,6 +43,7 @@ set(SERVER_SOURCES
     src/main.cpp
     src/server.cpp
     src/connection.cpp
+    src/ssl_connection.cpp
     src/request.cpp
     src/response.cpp
     src/compression.cpp
@@ -50,6 +52,7 @@ set(SERVER_SOURCES
 set(SERVER_HEADERS
     include/server.hpp
     include/connection.hpp
+    include/ssl_connection.hpp
     include/request.hpp
     include/response.hpp
     include/thread_pool.hpp
@@ -65,6 +68,8 @@ target_link_libraries(http_server
     Threads::Threads
     nlohmann_json::nlohmann_json
     ZLIB::ZLIB
+    OpenSSL::SSL
+    OpenSSL::Crypto
 )
 
 target_compile_features(http_server PRIVATE cxx_std_20)
@@ -92,9 +97,11 @@ if(BUILD_TESTING OR CMAKE_BUILD_TYPE STREQUAL "Debug")
         test/test_security.cpp
         test/test_performance.cpp
         test/test_http_protocol.cpp
+        test/test_https.cpp
         src/request.cpp
         src/response.cpp
         src/connection.cpp
+        src/ssl_connection.cpp
         src/server.cpp
         src/compression.cpp
     )
@@ -109,6 +116,8 @@ if(BUILD_TESTING OR CMAKE_BUILD_TYPE STREQUAL "Debug")
         Threads::Threads
         nlohmann_json::nlohmann_json
         ZLIB::ZLIB
+        OpenSSL::SSL
+        OpenSSL::Crypto
     )
 
     target_compile_features(test_runner PRIVATE cxx_std_20)

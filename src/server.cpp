@@ -118,6 +118,16 @@ ServerConfig ServerConfig::from_json_string(const std::string& json_str) {
         }
     }
     
+    // HTTPS configuration
+    if (json.contains("enable_https")) config.enable_https = json["enable_https"];
+    if (json.contains("https_port")) config.https_port = json["https_port"];
+    if (json.contains("ssl_certificate_file")) config.ssl_certificate_file = json["ssl_certificate_file"];
+    if (json.contains("ssl_private_key_file")) config.ssl_private_key_file = json["ssl_private_key_file"];
+    if (json.contains("ssl_ca_file")) config.ssl_ca_file = json["ssl_ca_file"];
+    if (json.contains("ssl_dh_file")) config.ssl_dh_file = json["ssl_dh_file"];
+    if (json.contains("ssl_verify_client")) config.ssl_verify_client = json["ssl_verify_client"];
+    if (json.contains("ssl_cipher_list")) config.ssl_cipher_list = json["ssl_cipher_list"];
+    
     return config;
 }
 
@@ -141,6 +151,16 @@ nlohmann::json ServerConfig::to_json() const {
     json["compressible_types"] = compressible_types;
     json["mime_types"] = mime_types;
     
+    // HTTPS configuration
+    json["enable_https"] = enable_https;
+    json["https_port"] = https_port;
+    json["ssl_certificate_file"] = ssl_certificate_file;
+    json["ssl_private_key_file"] = ssl_private_key_file;
+    json["ssl_ca_file"] = ssl_ca_file;
+    json["ssl_dh_file"] = ssl_dh_file;
+    json["ssl_verify_client"] = ssl_verify_client;
+    json["ssl_cipher_list"] = ssl_cipher_list;
+    
     return json;
 }
 
@@ -149,6 +169,13 @@ HttpServer::HttpServer(const ServerConfig& config)
     : config_(config)
     , acceptor_(io_context_)
     , thread_pool_(std::make_unique<ThreadPool>(config_.thread_pool_size)) {
+    
+    // Initialize HTTPS if enabled
+    if (config_.enable_https) {
+        https_acceptor_ = std::make_unique<boost::asio::ip::tcp::acceptor>(io_context_);
+        ssl_context_ = std::make_unique<boost::asio::ssl::context>(boost::asio::ssl::context::tlsv12);
+        initialize_ssl_context();
+    }
     
     initialize_mime_types();
     stats_.start_time = std::chrono::steady_clock::now();
@@ -164,6 +191,7 @@ void HttpServer::start() {
     }
     
     try {
+        // Setup HTTP endpoint
         boost::asio::ip::tcp::endpoint endpoint(
             boost::asio::ip::address::from_string(config_.host),
             config_.port
@@ -174,13 +202,32 @@ void HttpServer::start() {
         acceptor_.bind(endpoint);
         acceptor_.listen();
         
+        std::cout << "HTTP Server starting on " << config_.host << ":" << config_.port << std::endl;
+        
+        // Setup HTTPS endpoint if enabled
+        if (config_.enable_https && https_acceptor_) {
+            boost::asio::ip::tcp::endpoint https_endpoint(
+                boost::asio::ip::address::from_string(config_.host),
+                config_.https_port
+            );
+            
+            https_acceptor_->open(https_endpoint.protocol());
+            https_acceptor_->set_option(boost::asio::ip::tcp::acceptor::reuse_address(true));
+            https_acceptor_->bind(https_endpoint);
+            https_acceptor_->listen();
+            
+            std::cout << "HTTPS Server starting on " << config_.host << ":" << config_.https_port << std::endl;
+        }
+        
         running_.store(true);
         
-        std::cout << "HTTP Server starting on " << config_.host << ":" << config_.port << std::endl;
         std::cout << "Document root: " << config_.document_root << std::endl;
         std::cout << "Thread pool size: " << config_.thread_pool_size << std::endl;
         
         accept_connections();
+        if (config_.enable_https && https_acceptor_) {
+            accept_ssl_connections();
+        }
         
         // Run the io_context in a separate thread
         auto io_thread = std::thread([this]() {
@@ -473,6 +520,102 @@ bool HttpServer::path_matches(const std::string& pattern, const std::string& pat
     }
     
     return false;
+}
+
+void HttpServer::accept_ssl_connections() {
+    auto socket = std::make_shared<SslConnection::SslSocket>(io_context_, *ssl_context_);
+    
+    https_acceptor_->async_accept(socket->lowest_layer(),
+        [this, socket](const boost::system::error_code& error) {
+            handle_ssl_accept(error, socket);
+        }
+    );
+}
+
+void HttpServer::handle_ssl_accept(const boost::system::error_code& error, 
+                                  std::shared_ptr<SslConnection::SslSocket> socket) {
+    if (!error && running_.load()) {
+        stats_.total_connections.fetch_add(1);
+        stats_.active_connections.fetch_add(1);
+        
+        auto connection = std::make_shared<SslConnection>(
+            std::move(*socket),
+            [this](const HttpRequest& request) {
+                stats_.total_requests.fetch_add(1);
+                auto response = handle_request(request);
+                log_request(request, response);
+                return response;
+            },
+            [this]() {
+                stats_.active_connections.fetch_sub(1);
+            }
+        );
+        
+        connection->start();
+        
+        // Accept next SSL connection
+        accept_ssl_connections();
+    } else if (error) {
+        std::cerr << "HTTPS Accept error: " << error.message() << std::endl;
+    }
+}
+
+void HttpServer::initialize_ssl_context() {
+    if (!ssl_context_) {
+        return;
+    }
+    
+    try {
+        ssl_context_->set_options(
+            boost::asio::ssl::context::default_workarounds |
+            boost::asio::ssl::context::no_sslv2 |
+            boost::asio::ssl::context::no_sslv3 |
+            boost::asio::ssl::context::single_dh_use
+        );
+        
+        // Set cipher list
+        if (!config_.ssl_cipher_list.empty()) {
+            SSL_CTX_set_cipher_list(ssl_context_->native_handle(), config_.ssl_cipher_list.c_str());
+        }
+        
+        // Load certificate chain
+        if (!config_.ssl_certificate_file.empty()) {
+            ssl_context_->use_certificate_chain_file(config_.ssl_certificate_file);
+        }
+        
+        // Load private key
+        if (!config_.ssl_private_key_file.empty()) {
+            ssl_context_->use_private_key_file(config_.ssl_private_key_file, boost::asio::ssl::context::pem);
+        }
+        
+        // Load CA file for client verification
+        if (!config_.ssl_ca_file.empty()) {
+            ssl_context_->load_verify_file(config_.ssl_ca_file);
+            if (config_.ssl_verify_client) {
+                ssl_context_->set_verify_mode(boost::asio::ssl::verify_peer | boost::asio::ssl::verify_fail_if_no_peer_cert);
+            }
+        }
+        
+        // Load DH parameters
+        if (!config_.ssl_dh_file.empty()) {
+            ssl_context_->use_tmp_dh_file(config_.ssl_dh_file);
+        }
+        
+        // Set password callback if needed
+        ssl_context_->set_password_callback([this](std::size_t, boost::asio::ssl::context::password_purpose) {
+            return get_password();
+        });
+        
+    } catch (const std::exception& e) {
+        std::cerr << "SSL context initialization error: " << e.what() << std::endl;
+        throw;
+    }
+}
+
+std::string HttpServer::get_password() const {
+    // In a real implementation, you might want to read this from a secure source
+    // For now, return empty string (no password)
+    return "";
 }
 
 } // namespace http_server

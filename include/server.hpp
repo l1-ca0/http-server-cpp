@@ -7,8 +7,10 @@
 #include <unordered_map>
 #include <filesystem>
 #include <boost/asio.hpp>
+#include <boost/asio/ssl.hpp>
 #include <nlohmann/json.hpp>
 #include "connection.hpp"
+#include "ssl_connection.hpp"
 #include "request.hpp"
 #include "response.hpp"
 #include "thread_pool.hpp"
@@ -25,6 +27,16 @@ struct ServerConfig {
     size_t max_request_size{1024 * 1024}; // 1MB
     bool enable_logging{true};
     std::string log_file{"server.log"};
+    
+    // HTTPS Configuration
+    bool enable_https{false};
+    uint16_t https_port{8443};
+    std::string ssl_certificate_file;
+    std::string ssl_private_key_file;
+    std::string ssl_ca_file; // Optional: for client certificate verification
+    std::string ssl_dh_file; // Optional: for DHE ciphers
+    bool ssl_verify_client{false};
+    std::string ssl_cipher_list{"HIGH:!aNULL:!MD5"};
     
     bool serve_static_files{true};
     std::vector<std::string> index_files{"index.html", "index.htm"};
@@ -90,6 +102,8 @@ private:
     ServerConfig config_;
     boost::asio::io_context io_context_;
     boost::asio::ip::tcp::acceptor acceptor_;
+    std::unique_ptr<boost::asio::ip::tcp::acceptor> https_acceptor_;
+    std::unique_ptr<boost::asio::ssl::context> ssl_context_;
     std::unique_ptr<ThreadPool> thread_pool_;
     std::atomic<bool> running_{false};
     mutable Statistics stats_;
@@ -116,6 +130,13 @@ private:
     void accept_connections();
     void handle_accept(const boost::system::error_code& error, 
                       boost::asio::ip::tcp::socket socket);
+    
+    void accept_ssl_connections();
+    void handle_ssl_accept(const boost::system::error_code& error, 
+                          std::shared_ptr<SslConnection::SslSocket> socket);
+    
+    void initialize_ssl_context();
+    std::string get_password() const;
     
     HttpResponse handle_request(const HttpRequest& request);
     HttpResponse handle_static_file(const HttpRequest& request);
