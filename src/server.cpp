@@ -283,6 +283,10 @@ void HttpServer::add_patch_route(const std::string& path, RequestHandler handler
     add_route(path, HttpMethod::PATCH, std::move(handler));
 }
 
+void HttpServer::add_websocket_route(const std::string& path, WebSocketHandler handler) {
+    websocket_routes_[path] = std::move(handler);
+}
+
 void HttpServer::add_middleware(MiddlewareHandler middleware) {
     middleware_.push_back(std::move(middleware));
 }
@@ -336,6 +340,13 @@ void HttpServer::handle_accept(const boost::system::error_code& error,
             std::move(socket),
             [this](const HttpRequest& request) {
                 stats_.total_requests.fetch_add(1);
+                
+                // Check for WebSocket upgrade first
+                if (WebSocketUtils::is_websocket_request(request)) {
+                    // Handle WebSocket upgrade (this will be handled in connection level)
+                    return handle_websocket_upgrade_response(request);
+                }
+                
                 auto response = handle_request(request);
                 log_request(request, response);
                 return response;
@@ -408,6 +419,19 @@ HttpResponse HttpServer::handle_request(const HttpRequest& request) {
         return create_error_response(HttpStatus::INTERNAL_SERVER_ERROR, 
                                    "Internal server error: " + std::string(e.what()));
     }
+}
+
+HttpResponse HttpServer::handle_websocket_upgrade_response(const HttpRequest& request) {
+    // Find matching WebSocket route
+    for (const auto& [path, handler] : websocket_routes_) {
+        if (path_matches(path, request.path())) {
+            // Return WebSocket upgrade response
+            return WebSocketUtils::create_handshake_response(request);
+        }
+    }
+    
+    // No matching WebSocket route found
+    return WebSocketUtils::create_handshake_rejection("No WebSocket route found for path: " + request.path());
 }
 
 HttpResponse HttpServer::handle_static_file(const HttpRequest& request) {

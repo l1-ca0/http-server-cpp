@@ -11,6 +11,7 @@
 #include <nlohmann/json.hpp>
 #include "connection.hpp"
 #include "ssl_connection.hpp"
+#include "websocket.hpp"
 #include "request.hpp"
 #include "response.hpp"
 #include "thread_pool.hpp"
@@ -60,6 +61,7 @@ class HttpServer {
 public:
     using RequestHandler = std::function<HttpResponse(const HttpRequest&)>;
     using MiddlewareHandler = std::function<bool(const HttpRequest&, HttpResponse&)>;
+    using WebSocketHandler = std::function<void(std::shared_ptr<WebSocketConnection>)>;
     
     explicit HttpServer(const ServerConfig& config = ServerConfig{});
     ~HttpServer();
@@ -78,6 +80,9 @@ public:
     void add_delete_route(const std::string& path, RequestHandler handler);
     void add_patch_route(const std::string& path, RequestHandler handler);
     
+    // WebSocket support
+    void add_websocket_route(const std::string& path, WebSocketHandler handler);
+    
     void add_middleware(MiddlewareHandler middleware);
     
     void enable_static_files(const std::string& document_root);
@@ -90,6 +95,8 @@ public:
         std::atomic<size_t> total_requests{0};
         std::atomic<size_t> active_connections{0};
         std::atomic<size_t> total_connections{0};
+        std::atomic<size_t> active_websockets{0};
+        std::atomic<size_t> total_websockets{0};
         std::atomic<size_t> bytes_sent{0};
         std::atomic<size_t> bytes_received{0};
         std::chrono::steady_clock::time_point start_time;
@@ -125,6 +132,7 @@ private:
     };
     
     std::unordered_map<RouteKey, RequestHandler, RouteKeyHash> routes_;
+    std::unordered_map<std::string, WebSocketHandler> websocket_routes_;
     std::vector<MiddlewareHandler> middleware_;
     
     void accept_connections();
@@ -139,6 +147,8 @@ private:
     std::string get_password() const;
     
     HttpResponse handle_request(const HttpRequest& request);
+    HttpResponse handle_websocket_upgrade_response(const HttpRequest& request);
+    bool handle_websocket_upgrade(const HttpRequest& request, boost::asio::ip::tcp::socket& socket);
     HttpResponse handle_static_file(const HttpRequest& request);
     HttpResponse create_error_response(HttpStatus status, const std::string& message = "");
     

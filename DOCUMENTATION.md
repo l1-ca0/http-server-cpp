@@ -6,6 +6,7 @@ Detailed documentation for the Modern C++ HTTP Server implementation.
 
 - [Installation & Quick Start](#installation--quick-start)
 - [API Documentation](#api-documentation)
+- [WebSocket Support](#websocket-support)
 - [Configuration Reference](#configuration-reference)
 - [Testing Guide](#testing-guide)
 - [Performance & Benchmarking](#performance--benchmarking)
@@ -212,6 +213,40 @@ if (response.is_compressed()) {
 }
 ```
 
+## WebSocket Support
+
+Real-time bidirectional communication with full RFC 6455 compliance.
+
+### Quick Start
+
+```cpp
+#include "server.hpp"
+#include "websocket.hpp"
+
+int main() {
+    HttpServer server(8080);
+    
+    server.add_websocket_route("/ws", [](std::shared_ptr<WebSocketConnection> conn) {
+        conn->on_message([conn](const std::string& msg) {
+            conn->send_text("Echo: " + msg);
+        });
+    });
+    
+    server.start();
+    return 0;
+}
+```
+
+### JavaScript Client
+
+```javascript
+const ws = new WebSocket('ws://localhost:8080/ws');
+ws.onopen = () => ws.send('Hello!');
+ws.onmessage = e => console.log('Received:', e.data);
+```
+
+
+
 ## Configuration Reference
 
 ### JSON Configuration File
@@ -241,6 +276,13 @@ if (response.is_compressed()) {
   ],
   "enable_compression": true,
   "compression_min_size": 1024,
+  "websocket": {
+    "enabled": true,
+    "ping_interval": 30,
+    "connection_timeout": 60,
+    "max_frame_size": 1048576,
+    "max_connections": 100
+  },
   "compression_level": 6,
   "compressible_types": [
     "text/plain",
@@ -311,6 +353,11 @@ HttpServer server(config);
 | enable_compression | bool | true | Enable gzip compression |
 | compression_min_size | int | 1024 | Minimum size for compression |
 | compression_level | int | 6 | Compression level (1-9) |
+| websocket.enabled | bool | true | Enable WebSocket support |
+| websocket.ping_interval | int | 30 | WebSocket ping interval in seconds |
+| websocket.connection_timeout | int | 60 | WebSocket connection timeout in seconds |
+| websocket.max_frame_size | int | 1048576 | Maximum WebSocket frame size in bytes |
+| websocket.max_connections | int | 100 | Maximum concurrent WebSocket connections |
 
 ## Testing Guide
 
@@ -325,6 +372,7 @@ HttpServer server(config);
 | PerformanceTest   | Performance testing  | Concurrency, memory usage, stress, rapid config, malformed requests      |
 | HttpProtocolTest  | HTTP/1.1 compliance  | Chunked encoding, compression, protocol edge cases                       |
 | HttpsServerTest   | HTTPS/SSL testing    | SSL context, certificates, encrypted connections, HTTPS configuration    |
+| WebSocketTest     | WebSocket functionality | RFC 6455 compliance, frame handling, handshakes, connection management   |
 
 ### Running Tests
 
@@ -338,8 +386,14 @@ HttpServer server(config);
 # Run HTTPS tests
 ./build/test_runner --gtest_filter="HttpsServerTest.*"
 
+# Run WebSocket tests
+./build/test_runner --gtest_filter="WebSocketTest.*"
+
 # Run SSL-specific tests  
 ./build/test_runner --gtest_filter="*Ssl*"
+
+# Run WebSocket-specific tests
+./build/test_runner --gtest_filter="*WebSocket*"
 
 # Run with detailed output
 ./build/test_runner --gtest_print_time=1
@@ -375,6 +429,70 @@ curl -X POST -d "test data" http://localhost:8080/api/echo
 
 # Test static files
 curl http://localhost:8080/index.html
+```
+
+### WebSocket Testing
+
+```bash
+# Start server with WebSocket support
+./build/http_server
+
+# Test WebSocket connection using wscat (install: npm install -g wscat)
+wscat -c ws://localhost:8080/ws
+
+# Test WebSocket over HTTPS
+wscat -c wss://localhost:8443/ws --no-check
+
+# Test WebSocket with specific subprotocol
+wscat -c ws://localhost:8080/ws -s echo-protocol
+
+# WebSocket load testing (install: npm install -g ws-load-test)
+ws-load-test -c 100 -m 1000 ws://localhost:8080/ws
+
+# Manual WebSocket testing with curl (HTTP upgrade)
+curl -i -N -H "Connection: Upgrade" \
+     -H "Upgrade: websocket" \
+     -H "Sec-WebSocket-Version: 13" \
+     -H "Sec-WebSocket-Key: SGVsbG8sIHdvcmxkIQ==" \
+     http://localhost:8080/ws
+```
+
+#### JavaScript WebSocket Testing
+
+```html
+<!DOCTYPE html>
+<html>
+<head><title>WebSocket Test</title></head>
+<body>
+<script>
+    const ws = new WebSocket('ws://localhost:8080/ws');
+    
+    ws.onopen = function() {
+        console.log('Connected to WebSocket');
+        ws.send('Hello from browser!');
+    };
+    
+    ws.onmessage = function(event) {
+        console.log('Received:', event.data);
+    };
+    
+    ws.onclose = function(event) {
+        console.log('Connection closed:', event.code, event.reason);
+    };
+    
+    ws.onerror = function(error) {
+        console.error('WebSocket error:', error);
+    };
+    
+    // Send periodic messages
+    setInterval(() => {
+        if (ws.readyState === WebSocket.OPEN) {
+            ws.send(`Message at ${new Date().toISOString()}`);
+        }
+    }, 5000);
+</script>
+</body>
+</html>
 ```
 
 ## Performance & Benchmarking

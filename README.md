@@ -1,6 +1,6 @@
 # Modern C++ HTTP Server
 
-High-performance, memory-efficient HTTP/1.1 server built with modern C++20 and Boost.Asio. Features async I/O, automatic compression, static file serving, and extensible middleware pipeline for building web applications and APIs.
+High-performance, memory-efficient HTTP/1.1 server built with modern C++20 and Boost.Asio. Features async I/O, automatic compression, static file serving, WebSocket support, HTTPS/SSL encryption, and extensible middleware pipeline for building web applications and APIs.
 
 ![License](https://img.shields.io/badge/License-MIT-blue.svg)
 ![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey.svg)
@@ -9,6 +9,8 @@ High-performance, memory-efficient HTTP/1.1 server built with modern C++20 and B
 
 - **Async I/O** - High throughput, non-blocking architecture built on Boost.Asio
 - **HTTP/1.1** - Persistent connections, chunked encoding, standard methods
+- **WebSocket** - Full RFC 6455 implementation with real-time bidirectional communication
+- **HTTPS/SSL** - TLS encryption with configurable cipher suites and certificate management
 - **Static Files** - Built-in file server with MIME type detection
 - **JSON Config** - Flexible runtime configuration
 - **Middleware** - Extensible request/response processing pipeline

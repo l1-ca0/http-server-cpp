@@ -44,6 +44,7 @@ set(SERVER_SOURCES
     src/server.cpp
     src/connection.cpp
     src/ssl_connection.cpp
+    src/websocket.cpp
     src/request.cpp
     src/response.cpp
     src/compression.cpp
@@ -97,11 +98,13 @@ if(BUILD_TESTING OR CMAKE_BUILD_TYPE STREQUAL "Debug")
         test/test_security.cpp
         test/test_performance.cpp
         test/test_http_protocol.cpp
+        test/test_websocket.cpp
         test/test_https.cpp
         src/request.cpp
         src/response.cpp
         src/connection.cpp
         src/ssl_connection.cpp
+        src/websocket.cpp
         src/server.cpp
         src/compression.cpp
     )

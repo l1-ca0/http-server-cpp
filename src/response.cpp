@@ -308,6 +308,7 @@ std::string HttpResponse::get_mime_type(const std::string& file_extension) {
 
 std::string HttpResponse::get_status_message(HttpStatus status) {
     switch (status) {
+        case HttpStatus::SWITCHING_PROTOCOLS: return "Switching Protocols";
         case HttpStatus::OK: return "OK";
         case HttpStatus::CREATED: return "Created";
         case HttpStatus::ACCEPTED: return "Accepted";

@@ -4,9 +4,9 @@ This directory contains comprehensive unit tests for the C++ HTTP Server impleme
 
 ## Overview
 
-- **Total Test Cases**: 97 tests across 7 test suites (all passing)
+- **Total Test Cases**: 114 tests across 8 test suites (all passing)
 - **Testing Framework**: Google Test (gtest)
-- **Coverage**: Core HTTP server functionality including request parsing, response generation, server configuration, thread pool management, security testing, performance validation, comprehensive HTTP/1.1 protocol compliance including chunked transfer encoding, and full HTTPS/SSL support
+- **Coverage**: Core HTTP server functionality including request parsing, response generation, server configuration, thread pool management, security testing, performance validation, comprehensive HTTP/1.1 protocol compliance including chunked transfer encoding, full HTTPS/SSL support, and complete WebSocket implementation with RFC 6455 compliance
 
 ## Quick Start
 
@@ -49,6 +49,9 @@ cmake --build .
 
 # Run only HttpsServerTest suite
 ./test_runner --gtest_filter="HttpsServerTest.*"
+
+# Run only WebSocketTest suite
+./test_runner --gtest_filter="WebSocketTest.*"
 ```
 
 ### Running Individual Tests
@@ -64,6 +67,9 @@ cmake --build .
 
 # Run SSL-specific functionality tests
 ./test_runner --gtest_filter="*Ssl*"
+
+# Run only WebSocket-related tests
+./test_runner --gtest_filter="*WebSocket*"
 ```
 
 ## Test Suites
@@ -262,16 +268,52 @@ Tests HTTPS/SSL functionality including SSL context initialization, certificate 
 
 **Dependencies**: Requires OpenSSL for SSL/TLS support and test certificates for validation.
 
+### 8. WebSocketTest (17 tests)
+**File**: `test_websocket.cpp` 
+
+Tests comprehensive WebSocket functionality including RFC 6455 protocol compliance, frame handling, connection management, and real-time communication features.
+
+#### Frame Processing Tests (4 tests)
+- `FrameSerializationAndParsing` - Tests WebSocket frame serialization and parsing with various opcodes
+- `BinaryFrameHandling` - Tests handling of binary WebSocket frames and data integrity
+- `MaskedFrames` - Tests client-side frame masking and unmasking according to RFC 6455
+- `ControlFrames` - Tests PING, PONG, and CLOSE control frame handling
+
+#### Protocol Compliance Tests (4 tests)
+- `KeyGeneration` - Tests WebSocket key generation and Sec-WebSocket-Accept computation
+- `RequestValidation` - Tests WebSocket handshake request validation and header checking
+- `InvalidRequestHandling` - Tests rejection of invalid WebSocket upgrade requests
+- `HandshakeResponseGeneration` - Tests proper WebSocket handshake response generation
+
+#### Server Integration Tests (3 tests)
+- `RouteRegistration` - Tests WebSocket route registration in HTTP server
+- `ServerStatistics` - Tests WebSocket connection statistics tracking
+- `ConnectionStateManagement` - Tests WebSocket connection lifecycle and state transitions
+
+#### Performance & Error Handling Tests (3 tests)
+- `FrameSizeLimits` - Tests enforcement of WebSocket frame size limits
+- `FrameParsingErrors` - Tests error handling for malformed WebSocket frames
+- `FramePerformance` - Tests WebSocket frame processing performance under load
+
+#### Advanced Features Tests (3 tests)
+- `ProtocolCompliance` - Tests comprehensive RFC 6455 protocol compliance
+- `ConcurrentOperations` - Tests thread-safe WebSocket operations and concurrent connections
+- `ConnectionCleanup` - Tests proper WebSocket connection cleanup and resource management
+
+**Dependencies**: Requires Boost.Asio for async I/O and OpenSSL for SHA1 hashing in handshake processing.
+
 
 ## Test Data and Fixtures
 
 The tests use various mock data and fixtures:
 
 - **Sample HTTP Requests**: GET, POST, PUT, DELETE requests with different headers and bodies
+- **WebSocket Frames**: Various frame types including text, binary, control frames with different sizes and masking
+- **WebSocket Handshakes**: Valid and invalid WebSocket upgrade requests and response validation
 - **HTTPS Test Certificates**: Self-signed certificates for SSL/TLS testing
 - **Configuration Files**: Valid and invalid JSON configuration samples including HTTPS settings
 - **Static Files**: Mock file content for testing file serving functionality
-- **Error Scenarios**: Malformed requests, invalid configurations, network errors, SSL handshake failures
+- **Error Scenarios**: Malformed requests, invalid configurations, network errors, SSL handshake failures, invalid WebSocket frames
 
 ## Dependencies
 
@@ -292,6 +334,7 @@ The test suite validates:
 
 **HTTP Protocol Compliance**: Request/response parsing and generation  
 **HTTPS/SSL Support**: Certificate handling, SSL context management, encrypted connections  
+**WebSocket Implementation**: RFC 6455 compliance, frame handling, connection management, real-time communication  
 **Configuration Management**: JSON config loading, validation, and updates  
 **Concurrency**: Thread pool operations and thread safety  
 **Error Handling**: Graceful handling of invalid inputs and edge cases  
