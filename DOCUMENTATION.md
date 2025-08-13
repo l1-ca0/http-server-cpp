@@ -7,6 +7,7 @@ Detailed documentation for the Modern C++ HTTP Server implementation.
 - [Installation & Quick Start](#installation--quick-start)
 - [API Documentation](#api-documentation)
 - [WebSocket Support](#websocket-support)
+- [Rate Limiting](#rate-limiting)
 - [Configuration Reference](#configuration-reference)
 - [Testing Guide](#testing-guide)
 - [Performance & Benchmarking](#performance--benchmarking)
@@ -245,6 +246,216 @@ ws.onopen = () => ws.send('Hello!');
 ws.onmessage = e => console.log('Received:', e.data);
 ```
 
+## Rate Limiting
+
+The HTTP server includes comprehensive rate limiting capabilities to protect against abuse and ensure fair resource usage. Multiple algorithms are supported with flexible key extraction strategies.
+
+### Supported Algorithms
+
+#### Token Bucket
+Allows burst traffic up to a configured capacity, then refills tokens at a specified rate.
+
+```cpp
+#include "rate_limiter.hpp"
+
+// Configure token bucket rate limiting
+RateLimitConfig config;
+config.strategy = RateLimitStrategy::TOKEN_BUCKET;
+config.max_requests = 100;           // Requests per window
+config.burst_capacity = 20;          // Burst capacity
+config.window_duration = std::chrono::seconds(60);
+
+RateLimiter limiter(config);
+```
+
+#### Fixed Window
+Simple request counting per time window with hard resets.
+
+```cpp
+// Configure fixed window rate limiting
+RateLimitConfig config;
+config.strategy = RateLimitStrategy::FIXED_WINDOW;
+config.max_requests = 1000;          // Requests per window
+config.window_duration = std::chrono::seconds(3600); // 1 hour
+
+RateLimiter limiter(config);
+```
+
+#### Sliding Window
+More accurate limiting using timestamp-based request tracking.
+
+```cpp
+// Configure sliding window rate limiting
+RateLimitConfig config;
+config.strategy = RateLimitStrategy::SLIDING_WINDOW;
+config.max_requests = 500;           // Requests per window
+config.window_duration = std::chrono::seconds(300); // 5 minutes
+
+RateLimiter limiter(config);
+```
+
+### Key Extraction Strategies
+
+Rate limiting can be applied based on different criteria:
+
+```cpp
+// IP-based limiting (default)
+auto ip_limiter = RateLimiter(config);
+
+// User ID-based limiting
+config.key_extractor = [](const HttpRequest& request) {
+    auto user_id = request.get_header("User-ID");
+    return user_id ? *user_id : "anonymous";
+};
+
+// API key-based limiting
+config.key_extractor = RateLimitKeyExtractors::api_key;
+
+// Endpoint path-based limiting
+config.key_extractor = RateLimitKeyExtractors::endpoint_path;
+
+// Combined IP and User-Agent
+config.key_extractor = RateLimitKeyExtractors::ip_and_user_agent;
+```
+
+### Server Integration
+
+#### Middleware Integration
+Rate limiting integrates seamlessly with the HTTP server middleware pipeline:
+
+```cpp
+#include "server.hpp"
+#include "rate_limiter.hpp"
+
+HttpServer server;
+
+// Configure rate limiting
+RateLimitConfig rate_config;
+rate_config.strategy = RateLimitStrategy::TOKEN_BUCKET;
+rate_config.max_requests = 100;
+rate_config.burst_capacity = 10;
+rate_config.window_duration = std::chrono::seconds(60);
+
+RateLimiter limiter(rate_config);
+
+// Add rate limiting middleware
+server.add_middleware(limiter.create_middleware());
+
+// Add routes
+server.add_get_route("/api/data", [](const HttpRequest& req) {
+    return HttpResponse::ok().set_json(R"({"data": "value"})");
+});
+```
+
+#### Server Configuration
+Rate limiting can be enabled directly in server configuration:
+
+```cpp
+ServerConfig server_config;
+server_config.enable_rate_limiting = true;
+server_config.rate_limit_config = rate_config;
+
+HttpServer server(server_config);
+```
+
+### Configuration Options
+
+#### JSON Configuration
+```json
+{
+  "rate_limiting": {
+    "enabled": true,
+    "strategy": "token_bucket",
+    "max_requests": 1000,
+    "burst_capacity": 50,
+    "window_duration_seconds": 3600,
+    "key_strategy": "ip_address"
+  }
+}
+```
+
+#### Runtime Configuration Updates
+```cpp
+// Update configuration at runtime
+RateLimitConfig new_config;
+new_config.strategy = RateLimitStrategy::SLIDING_WINDOW;
+new_config.max_requests = 2000;
+new_config.window_duration = std::chrono::seconds(1800);
+
+limiter.update_config(new_config);
+```
+
+### Response Headers
+
+When rate limiting is active, responses include informative headers:
+
+```
+X-RateLimit-Limit: 1000
+X-RateLimit-Remaining: 999
+X-RateLimit-Reset: 3600
+X-RateLimit-Type: token_bucket
+```
+
+### Custom Responses
+
+Customize the response when rate limits are exceeded:
+
+```cpp
+config.rate_limit_response = []() {
+    return HttpResponse(HttpStatus::TOO_MANY_REQUESTS)
+        .set_json(R"({
+            "error": "Rate limit exceeded",
+            "retry_after": 60,
+            "documentation": "https://api.example.com/docs/rate-limits"
+        })");
+};
+```
+
+### Statistics and Monitoring
+
+Access rate limiting statistics for monitoring:
+
+```cpp
+auto stats = limiter.get_statistics();
+std::cout << "Total requests: " << stats.total_requests << std::endl;
+std::cout << "Blocked requests: " << stats.blocked_requests << std::endl;
+std::cout << "Block rate: " << stats.get_block_rate() << std::endl;
+std::cout << "Active keys: " << stats.active_keys << std::endl;
+```
+
+### Best Practices
+
+1. **Choose the Right Algorithm**:
+   - Token Bucket: For APIs that need to handle burst traffic
+   - Fixed Window: For simple, predictable rate limiting
+   - Sliding Window: For more accurate and fair limiting
+
+2. **Key Selection**:
+   - IP-based: General protection against abuse
+   - User-based: Fair usage policies for authenticated users
+   - API key-based: Service tier differentiation
+   - Endpoint-based: Protect expensive operations
+
+3. **Configuration**:
+   - Set reasonable burst capacities for token bucket
+   - Choose appropriate window durations
+   - Monitor and adjust based on usage patterns
+
+4. **Error Handling**:
+   - Provide clear error messages
+   - Include retry-after information
+   - Log rate limiting events for analysis
+
+
+
+## Configuration Reference
+
+### JSON Configuration File
+
+```json
+````
+```
+
 
 
 ## Configuration Reference
@@ -282,6 +493,14 @@ ws.onmessage = e => console.log('Received:', e.data);
     "connection_timeout": 60,
     "max_frame_size": 1048576,
     "max_connections": 100
+  },
+  "rate_limiting": {
+    "enabled": true,
+    "strategy": "token_bucket",
+    "max_requests": 1000,
+    "burst_capacity": 50,
+    "window_duration_seconds": 3600,
+    "key_strategy": "ip_address"
   },
   "compression_level": 6,
   "compressible_types": [
@@ -358,6 +577,12 @@ HttpServer server(config);
 | websocket.connection_timeout | int | 60 | WebSocket connection timeout in seconds |
 | websocket.max_frame_size | int | 1048576 | Maximum WebSocket frame size in bytes |
 | websocket.max_connections | int | 100 | Maximum concurrent WebSocket connections |
+| rate_limiting.enabled | bool | false | Enable rate limiting |
+| rate_limiting.strategy | string | "token_bucket" | Rate limiting algorithm ("token_bucket", "fixed_window", "sliding_window") |
+| rate_limiting.max_requests | int | 1000 | Maximum requests per window |
+| rate_limiting.burst_capacity | int | 50 | Burst capacity for token bucket algorithm |
+| rate_limiting.window_duration_seconds | int | 3600 | Time window duration in seconds |
+| rate_limiting.key_strategy | string | "ip_address" | Key extraction strategy ("ip_address", "user_id", "api_key", "endpoint_path") |
 
 ## Testing Guide
 
@@ -373,6 +598,7 @@ HttpServer server(config);
 | HttpProtocolTest  | HTTP/1.1 compliance  | Chunked encoding, compression, protocol edge cases                       |
 | HttpsServerTest   | HTTPS/SSL testing    | SSL context, certificates, encrypted connections, HTTPS configuration    |
 | WebSocketTest     | WebSocket functionality | RFC 6455 compliance, frame handling, handshakes, connection management   |
+| RateLimiterTest   | Rate limiting functionality | Multiple algorithms, key extraction, middleware integration, abuse protection |
 
 ### Running Tests
 
@@ -734,13 +960,12 @@ This server has limitations compared to production servers:
 ### Protocol Support
 
 - **HTTP/1.1 Only** - No HTTP/2 or HTTP/3 support  
-- **No WebSockets** - Real-time communication not supported
 
 ### HTTP/1.1 Feature Gaps
 
-- **No Caching Support** - Missing ETag and conditional requests
+- **No ETag Support** - Missing ETag generation and conditional requests (If-None-Match, If-Modified-Since)
 - **No Range Requests** - Partial content delivery not implemented
-- **Basic Authentication** - No built-in auth schemes
+- **No Built-in Authentication** - Applications must implement custom auth schemes (server supports Authorization headers)
 
 ### HTTPS/SSL Limitations
 

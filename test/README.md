@@ -4,9 +4,9 @@ This directory contains comprehensive unit tests for the C++ HTTP Server impleme
 
 ## Overview
 
-- **Total Test Cases**: 114 tests across 8 test suites (all passing)
+- **Total Test Cases**: 127 tests across 9 test suites (all passing)
 - **Testing Framework**: Google Test (gtest)
-- **Coverage**: Core HTTP server functionality including request parsing, response generation, server configuration, thread pool management, security testing, performance validation, comprehensive HTTP/1.1 protocol compliance including chunked transfer encoding, full HTTPS/SSL support, and complete WebSocket implementation with RFC 6455 compliance
+- **Coverage**: Core HTTP server functionality including request parsing, response generation, server configuration, thread pool management, security testing, performance validation, comprehensive HTTP/1.1 protocol compliance including chunked transfer encoding, full HTTPS/SSL support, complete WebSocket implementation with RFC 6455 compliance, and advanced rate limiting with multiple algorithms
 
 ## Quick Start
 
@@ -52,6 +52,9 @@ cmake --build .
 
 # Run only WebSocketTest suite
 ./test_runner --gtest_filter="WebSocketTest.*"
+
+# Run only RateLimiterTest suite
+./test_runner --gtest_filter="RateLimiterTest.*"
 ```
 
 ### Running Individual Tests
@@ -70,6 +73,9 @@ cmake --build .
 
 # Run only WebSocket-related tests
 ./test_runner --gtest_filter="*WebSocket*"
+
+# Run only rate limiting tests
+./test_runner --gtest_filter="*RateLimit*"
 ```
 
 ## Test Suites
@@ -302,6 +308,42 @@ Tests comprehensive WebSocket functionality including RFC 6455 protocol complian
 
 **Dependencies**: Requires Boost.Asio for async I/O and OpenSSL for SHA1 hashing in handshake processing.
 
+### 9. RateLimiterTest (13 tests)
+**File**: `test_rate_limiter.cpp` 
+
+Tests comprehensive rate limiting functionality including multiple algorithms, key extraction strategies, middleware integration, and protection against abuse.
+
+#### Algorithm Implementation Tests (5 tests)
+- `TokenBucketAllowsBurstRequests` - Tests token bucket algorithm allowing burst capacity requests immediately
+- `TokenBucketRefillsOverTime` - Tests token bucket refill mechanism over time intervals
+- `FixedWindowEnforcesLimit` - Tests fixed window algorithm enforcing request limits per time window
+- `FixedWindowResetsAfterDuration` - Tests fixed window reset behavior after time window expires
+- `SlidingWindowEnforcesLimit` - Tests sliding window algorithm with timestamp-based tracking
+
+#### Multi-Client & Key Extraction Tests (3 tests)
+- `DifferentClientsHaveSeparateLimits` - Tests that different clients (by IP) have separate rate limits
+- `CustomKeyExtractor` - Tests custom key extraction functions for user-based limiting
+- `KeyExtractors` - Tests various built-in key extractors (IP, API key, user ID, endpoint path)
+
+#### Configuration & Middleware Tests (3 tests)
+- `DisabledLimiterAllowsAllRequests` - Tests that disabled rate limiter allows unlimited requests
+- `ConfigurationUpdate` - Tests runtime configuration updates and algorithm switching
+- `MiddlewareIntegration` - Tests rate limiting middleware integration with HTTP pipeline
+
+#### Advanced Features Tests (2 tests)
+- `ConcurrentAccess` - Tests thread-safe concurrent access to rate limiting algorithms
+- `CleanupExpiredEntries` - Tests automatic cleanup of expired rate limiting entries
+
+**Features Tested**:
+- **Token Bucket**: Burst handling, refill rates, capacity management
+- **Fixed Window**: Request counting, window resets, limit enforcement  
+- **Sliding Window**: Timestamp tracking, rolling window behavior
+- **Key Strategies**: IP-based, user-based, API key-based, endpoint-based limiting
+- **Middleware**: HTTP 429 responses, rate limit headers, custom responses
+- **Configuration**: JSON config, runtime updates, algorithm switching
+- **Concurrency**: Thread-safe operations, concurrent client handling
+- **Cleanup**: Automatic expired entry removal, memory management
+
 
 ## Test Data and Fixtures
 
@@ -310,10 +352,11 @@ The tests use various mock data and fixtures:
 - **Sample HTTP Requests**: GET, POST, PUT, DELETE requests with different headers and bodies
 - **WebSocket Frames**: Various frame types including text, binary, control frames with different sizes and masking
 - **WebSocket Handshakes**: Valid and invalid WebSocket upgrade requests and response validation
+- **Rate Limiting Scenarios**: Multiple client IPs, user IDs, API keys, different algorithms and configurations
 - **HTTPS Test Certificates**: Self-signed certificates for SSL/TLS testing
-- **Configuration Files**: Valid and invalid JSON configuration samples including HTTPS settings
+- **Configuration Files**: Valid and invalid JSON configuration samples including HTTPS settings and rate limiting policies
 - **Static Files**: Mock file content for testing file serving functionality
-- **Error Scenarios**: Malformed requests, invalid configurations, network errors, SSL handshake failures, invalid WebSocket frames
+- **Error Scenarios**: Malformed requests, invalid configurations, network errors, SSL handshake failures, invalid WebSocket frames, rate limit violations
 
 ## Dependencies
 
@@ -335,6 +378,7 @@ The test suite validates:
 **HTTP Protocol Compliance**: Request/response parsing and generation  
 **HTTPS/SSL Support**: Certificate handling, SSL context management, encrypted connections  
 **WebSocket Implementation**: RFC 6455 compliance, frame handling, connection management, real-time communication  
+**Rate Limiting**: Multiple algorithms (Token Bucket, Fixed Window, Sliding Window), key extraction, middleware integration  
 **Configuration Management**: JSON config loading, validation, and updates  
 **Concurrency**: Thread pool operations and thread safety  
 **Error Handling**: Graceful handling of invalid inputs and edge cases  

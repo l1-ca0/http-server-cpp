@@ -11,6 +11,7 @@ High-performance, memory-efficient HTTP/1.1 server built with modern C++20 and B
 - **HTTP/1.1** - Persistent connections, chunked encoding, standard methods
 - **WebSocket** - Full RFC 6455 implementation with real-time bidirectional communication
 - **HTTPS/SSL** - TLS encryption with configurable cipher suites and certificate management
+- **Rate Limiting** - Advanced traffic control with Token Bucket, Fixed Window, and Sliding Window algorithms
 - **Static Files** - Built-in file server with MIME type detection
 - **JSON Config** - Flexible runtime configuration
 - **Middleware** - Extensible request/response processing pipeline
