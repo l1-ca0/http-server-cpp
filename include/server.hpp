@@ -12,6 +12,7 @@
 #include "connection.hpp"
 #include "ssl_connection.hpp"
 #include "websocket.hpp"
+#include "rate_limiter.hpp"
 #include "request.hpp"
 #include "response.hpp"
 #include "thread_pool.hpp"
@@ -52,6 +53,16 @@ struct ServerConfig {
     
     std::unordered_map<std::string, std::string> mime_types;
     
+    // Rate limiting configuration
+    bool enable_rate_limiting{false};
+    RateLimitConfig global_rate_limit{
+        .max_requests = 100,
+        .window_duration = std::chrono::seconds(60),
+        .burst_capacity = 10,
+        .strategy = RateLimitStrategy::TOKEN_BUCKET,
+        .enabled = true
+    };
+    
     static ServerConfig from_json(const std::string& config_file);
     static ServerConfig from_json_string(const std::string& json_str);
     nlohmann::json to_json() const;
@@ -85,6 +96,12 @@ public:
     
     void add_middleware(MiddlewareHandler middleware);
     
+    // Rate limiting
+    void enable_rate_limiting(const RateLimitConfig& config);
+    void disable_rate_limiting();
+    void add_endpoint_rate_limit(const std::string& endpoint, const RateLimitConfig& config);
+    RateLimitStats get_rate_limit_stats() const;
+    
     void enable_static_files(const std::string& document_root);
     void disable_static_files();
     
@@ -100,6 +117,11 @@ public:
         std::atomic<size_t> bytes_sent{0};
         std::atomic<size_t> bytes_received{0};
         std::chrono::steady_clock::time_point start_time;
+        
+        // Rate limiting stats
+        std::atomic<size_t> rate_limited_requests{0};
+        
+        Statistics() : start_time(std::chrono::steady_clock::now()) {}
     };
     
     const Statistics& stats() const noexcept { return stats_; }
@@ -134,6 +156,11 @@ private:
     std::unordered_map<RouteKey, RequestHandler, RouteKeyHash> routes_;
     std::unordered_map<std::string, WebSocketHandler> websocket_routes_;
     std::vector<MiddlewareHandler> middleware_;
+    
+    // Rate limiting
+    std::unique_ptr<RateLimiter> global_rate_limiter_;
+    std::unordered_map<std::string, std::unique_ptr<RateLimiter>> endpoint_rate_limiters_;
+    mutable RateLimitStats rate_limit_stats_;
     
     void accept_connections();
     void handle_accept(const boost::system::error_code& error, 

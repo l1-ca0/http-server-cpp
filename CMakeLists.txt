@@ -48,6 +48,7 @@ set(SERVER_SOURCES
     src/request.cpp
     src/response.cpp
     src/compression.cpp
+    src/rate_limiter.cpp
 )
 
 set(SERVER_HEADERS
@@ -58,6 +59,7 @@ set(SERVER_HEADERS
     include/response.hpp
     include/thread_pool.hpp
     include/compression.hpp
+    include/rate_limiter.hpp
 )
 
 add_executable(http_server ${SERVER_SOURCES} ${SERVER_HEADERS})
@@ -100,6 +102,7 @@ if(BUILD_TESTING OR CMAKE_BUILD_TYPE STREQUAL "Debug")
         test/test_http_protocol.cpp
         test/test_websocket.cpp
         test/test_https.cpp
+        test/test_rate_limiter.cpp
         src/request.cpp
         src/response.cpp
         src/connection.cpp
@@ -107,6 +110,7 @@ if(BUILD_TESTING OR CMAKE_BUILD_TYPE STREQUAL "Debug")
         src/websocket.cpp
         src/server.cpp
         src/compression.cpp
+        src/rate_limiter.cpp
     )
 
     add_executable(test_runner ${TEST_SOURCES})

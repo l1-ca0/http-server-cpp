@@ -367,4 +367,19 @@ bool HttpRequest::is_valid_http_version(const std::string& version) {
     return version == "HTTP/1.0" || version == "HTTP/1.1";
 }
 
+// Testing helper methods
+void HttpRequest::set_header(const std::string& name, const std::string& value) {
+    std::string normalized_name = name;
+    normalize_header_name(normalized_name);
+    headers_[normalized_name] = value;
+}
+
+void HttpRequest::set_path(const std::string& path) {
+    path_ = path;
+}
+
+void HttpRequest::set_method(HttpMethod method) {
+    method_ = method;
+}
+
 } // namespace http_server

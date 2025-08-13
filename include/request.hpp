@@ -44,6 +44,11 @@ public:
     bool is_valid() const noexcept { return is_valid_; }
     bool is_keep_alive() const;
     
+    // Testing helper methods
+    void set_header(const std::string& name, const std::string& value);
+    void set_path(const std::string& path);
+    void set_method(HttpMethod method);
+    
     std::string to_string() const;
     static std::string method_to_string(HttpMethod method);
     static HttpMethod string_to_method(std::string_view method_str);

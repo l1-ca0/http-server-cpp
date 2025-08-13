@@ -324,6 +324,7 @@ std::string HttpResponse::get_status_message(HttpStatus status) {
         case HttpStatus::CONFLICT: return "Conflict";
         case HttpStatus::LENGTH_REQUIRED: return "Length Required";
         case HttpStatus::PAYLOAD_TOO_LARGE: return "Payload Too Large";
+        case HttpStatus::TOO_MANY_REQUESTS: return "Too Many Requests";
         case HttpStatus::INTERNAL_SERVER_ERROR: return "Internal Server Error";
         case HttpStatus::NOT_IMPLEMENTED: return "Not Implemented";
         case HttpStatus::BAD_GATEWAY: return "Bad Gateway";
