@@ -15,8 +15,8 @@ protected:
         // Create basic HTTPS config
         config.enable_https = true;
         config.https_port = 18443; // Use different port for testing
-        config.ssl_certificate_file = "../certs/server.crt";
-        config.ssl_private_key_file = "../certs/server.key";
+        config.ssl_certificate_file = "./certs/server.crt";
+        config.ssl_private_key_file = "./certs/server.key";
         config.port = 18080; // Use different port for HTTP testing
         config.document_root = "./test_public";
         config.enable_logging = false; // Disable logging for tests
@@ -175,8 +175,8 @@ TEST_F(HttpsServerTest, HttpsConfigFileLoading) {
         {"port", 18080},
         {"enable_https", true},
         {"https_port", 18443},
-        {"ssl_certificate_file", "../certs/server.crt"},
-        {"ssl_private_key_file", "../certs/server.key"},
+        {"ssl_certificate_file", "./certs/server.crt"},
+        {"ssl_private_key_file", "./certs/server.key"},
         {"ssl_cipher_list", "HIGH:!aNULL:!MD5"}
     };
     
@@ -188,8 +188,8 @@ TEST_F(HttpsServerTest, HttpsConfigFileLoading) {
         auto loaded_config = ServerConfig::from_json(config_path);
         EXPECT_TRUE(loaded_config.enable_https);
         EXPECT_EQ(loaded_config.https_port, 18443);
-        EXPECT_EQ(loaded_config.ssl_certificate_file, "../certs/server.crt");
-        EXPECT_EQ(loaded_config.ssl_private_key_file, "../certs/server.key");
+        EXPECT_EQ(loaded_config.ssl_certificate_file, "./certs/server.crt");
+        EXPECT_EQ(loaded_config.ssl_private_key_file, "./certs/server.key");
     });
     
     // Clean up
