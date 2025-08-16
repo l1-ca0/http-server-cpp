@@ -451,7 +451,7 @@ HttpResponse HttpServer::handle_static_file(const HttpRequest& request) {
         for (const auto& index_file : config_.index_files) {
             auto index_path = requested_path / index_file;
             if (std::filesystem::exists(index_path) && std::filesystem::is_regular_file(index_path)) {
-                return HttpResponse::file_response(index_path.string());
+                return HttpResponse::conditional_file_response(index_path.string(), request);
             }
         }
         return create_error_response(HttpStatus::FORBIDDEN, "Directory listing disabled");
@@ -462,7 +462,7 @@ HttpResponse HttpServer::handle_static_file(const HttpRequest& request) {
         return create_error_response(HttpStatus::NOT_FOUND, "File not found");
     }
     
-    return HttpResponse::file_response(requested_path.string());
+    return HttpResponse::conditional_file_response(requested_path.string(), request);
 }
 
 HttpResponse HttpServer::create_error_response(HttpStatus status, const std::string& message) {

@@ -9,6 +9,9 @@
 
 namespace http_server {
 
+// Forward declaration
+class HttpRequest;
+
 enum class HttpStatus {
     OK = 200,
     CREATED = 201,
@@ -63,6 +66,13 @@ public:
     HttpResponse& set_cache_control(const std::string& cache_control);
     HttpResponse& set_cors_headers(const std::string& origin = "*");
     
+    // ETag support
+    HttpResponse& set_etag(const std::string& etag, bool weak = false);
+    HttpResponse& set_last_modified(const std::chrono::system_clock::time_point& time);
+    HttpResponse& set_last_modified(const std::string& rfc1123_time);
+    std::string get_etag() const;
+    std::chrono::system_clock::time_point get_last_modified() const;
+    
     HttpResponse& set_compressed_body(const std::string& body, const std::string& encoding = "gzip");
     HttpResponse& compress_body_if_supported(const std::string& accept_encoding);
     bool is_compressed() const;
@@ -76,6 +86,14 @@ public:
     static HttpResponse internal_error(const std::string& message = "Internal Server Error");
     static HttpResponse json_response(const std::string& json_data, HttpStatus status = HttpStatus::OK);
     static HttpResponse file_response(const std::string& file_path);
+    static HttpResponse conditional_file_response(const std::string& file_path, const HttpRequest& request);
+    
+    // ETag utilities
+    static std::string generate_etag(const std::string& content);
+    static std::string generate_file_etag(const std::string& file_path);
+    static std::string format_http_time(const std::chrono::system_clock::time_point& time);
+    static std::chrono::system_clock::time_point parse_http_time(const std::string& time_str);
+    static bool etag_matches(const std::string& etag, const std::string& if_none_match);
     
     static std::string get_mime_type(const std::string& file_extension);
     static std::string get_status_message(HttpStatus status);

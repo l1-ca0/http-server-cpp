@@ -382,4 +382,27 @@ void HttpRequest::set_method(HttpMethod method) {
     method_ = method;
 }
 
+std::optional<std::string> HttpRequest::get_if_none_match() const {
+    return get_header("If-None-Match");
+}
+
+std::optional<std::string> HttpRequest::get_if_modified_since() const {
+    return get_header("If-Modified-Since");
+}
+
+std::optional<std::string> HttpRequest::get_if_match() const {
+    return get_header("If-Match");
+}
+
+std::optional<std::string> HttpRequest::get_if_unmodified_since() const {
+    return get_header("If-Unmodified-Since");
+}
+
+bool HttpRequest::is_conditional_request() const {
+    return has_header("If-None-Match") || 
+           has_header("If-Modified-Since") || 
+           has_header("If-Match") || 
+           has_header("If-Unmodified-Since");
+}
+
 } // namespace http_server

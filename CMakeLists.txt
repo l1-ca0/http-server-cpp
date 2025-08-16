@@ -103,6 +103,7 @@ if(BUILD_TESTING OR CMAKE_BUILD_TYPE STREQUAL "Debug")
         test/test_websocket.cpp
         test/test_https.cpp
         test/test_rate_limiter.cpp
+        test/test_etag.cpp
         src/request.cpp
         src/response.cpp
         src/connection.cpp

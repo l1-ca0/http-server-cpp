@@ -41,6 +41,13 @@ public:
     std::optional<std::string> get_query_param(const std::string& name) const;
     bool has_query_param(const std::string& name) const;
     
+    // Conditional request support
+    std::optional<std::string> get_if_none_match() const;
+    std::optional<std::string> get_if_modified_since() const;
+    std::optional<std::string> get_if_match() const;
+    std::optional<std::string> get_if_unmodified_since() const;
+    bool is_conditional_request() const;
+    
     bool is_valid() const noexcept { return is_valid_; }
     bool is_keep_alive() const;
     
