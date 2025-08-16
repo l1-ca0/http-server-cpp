@@ -12,7 +12,7 @@ High-performance, memory-efficient HTTP/1.1 server built with modern C++20 and B
 - **WebSocket** - Full RFC 6455 implementation with real-time bidirectional communication
 - **HTTPS/SSL** - TLS encryption with configurable cipher suites and certificate management
 - **Rate Limiting** - Advanced traffic control with Token Bucket, Fixed Window, and Sliding Window algorithms
-- **Static Files** - Built-in file server with MIME type detection
+- **Static Files** - Built-in file server with MIME type detection and ETag caching
 - **JSON Config** - Flexible runtime configuration
 - **Middleware** - Extensible request/response processing pipeline
 - **Compression** - Automatic gzip compression for supported content
@@ -23,7 +23,7 @@ High-performance, memory-efficient HTTP/1.1 server built with modern C++20 and B
 - **Boost.Asio** - Async I/O event loop
 - **Connection** - Per-client connection handling with timeouts
 - **HttpRequest** - HTTP/1.1 parser with validation
-- **HttpResponse** - Fluent response builder with compression
+- **HttpResponse** - Fluent response builder with compression and ETag caching
 
 ## Documentation
 

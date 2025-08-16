@@ -4,9 +4,9 @@ This directory contains comprehensive unit tests for the C++ HTTP Server impleme
 
 ## Overview
 
-- **Total Test Cases**: 127 tests across 9 test suites (all passing)
+- **Total Test Cases**: 138 tests across 10 test suites (all passing)
 - **Testing Framework**: Google Test (gtest)
-- **Coverage**: Core HTTP server functionality including request parsing, response generation, server configuration, thread pool management, security testing, performance validation, comprehensive HTTP/1.1 protocol compliance including chunked transfer encoding, full HTTPS/SSL support, complete WebSocket implementation with RFC 6455 compliance, and advanced rate limiting with multiple algorithms
+- **Coverage**: Core HTTP server functionality including request parsing, response generation, server configuration, thread pool management, security testing, performance validation, comprehensive HTTP/1.1 protocol compliance including chunked transfer encoding, full HTTPS/SSL support, complete WebSocket implementation with RFC 6455 compliance, advanced rate limiting with multiple algorithms, and ETag conditional request handling
 
 ## Quick Start
 
@@ -55,6 +55,9 @@ cmake --build .
 
 # Run only RateLimiterTest suite
 ./test_runner --gtest_filter="RateLimiterTest.*"
+
+# Run only ETagTest suite
+./test_runner --gtest_filter="ETagTest.*"
 ```
 
 ### Running Individual Tests
@@ -343,6 +346,38 @@ Tests comprehensive rate limiting functionality including multiple algorithms, k
 - **Configuration**: JSON config, runtime updates, algorithm switching
 - **Concurrency**: Thread-safe operations, concurrent client handling
 - **Cleanup**: Automatic expired entry removal, memory management
+
+### 10. ETagTest (11 tests)
+**File**: `test_etag.cpp` 
+
+Tests ETag generation, conditional request handling, and HTTP cache validation functionality.
+
+#### ETag Generation Tests (3 tests)
+- `GenerateETag` - Tests ETag generation from content strings with consistent hashing
+- `GenerateFileETag` - Tests file-based ETag generation using file metadata and modification times
+- `SetAndGetETag` - Tests ETag header setting and retrieval with strong and weak ETag formats
+
+#### Conditional Request Tests (3 tests)
+- `ConditionalRequestHeaders` - Tests If-None-Match and If-Modified-Since header parsing and detection
+- `ETagMatching` - Tests ETag comparison logic including weak ETags, multiple ETags, and wildcard matching
+- `LastModified` - Tests Last-Modified header setting, formatting, and time handling
+
+#### Cache Validation Tests (3 tests)
+- `ConditionalFileResponse_NotModified_ETag` - Tests HTTP 304 Not Modified responses for unchanged files using ETags
+- `ConditionalFileResponse_NotModified_LastModified` - Tests Last-Modified header infrastructure and conditional request handling
+- `ConditionalFileResponse_Modified` - Tests full file responses when content has been modified
+
+#### HTTP Time & Cache Tests (2 tests)
+- `HTTPTimeFormatting` - Tests HTTP date/time formatting for cache headers
+- `CacheHeaders` - Tests cache control headers including public caching and max-age directives
+
+**Features Tested**:
+- **ETag Generation**: Content-based and file-based ETag creation with consistent hashing
+- **Conditional Requests**: If-None-Match header processing and HTTP 304 responses
+- **Cache Headers**: Last-Modified, Cache-Control, and ETag header management
+- **File Modification Detection**: File timestamp tracking and modification detection
+- **HTTP Time Formatting**: RFC 1123 date formatting for cache-related headers
+- **Weak vs Strong ETags**: Proper handling of both ETag validation types
 
 
 ## Test Data and Fixtures

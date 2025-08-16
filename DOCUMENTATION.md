@@ -160,12 +160,16 @@ return HttpResponse::json_response(json_data);
 // File responses
 return HttpResponse::file_response("./public/index.html");
 
+// Conditional file responses with ETag support
+return HttpResponse::conditional_file_response("./public/data.json", request);
+
 // Custom responses
 return HttpResponse(HttpStatus::CREATED)
     .set_json(data)
     .set_header("Location", "/users/123")
+    .set_etag("abc123")  // Add ETag for caching
     .set_cors_headers()
-    .set_cache_control("no-cache");
+    .set_cache_control("public, max-age=3600");
 ```
 
 ### Middleware System
@@ -193,6 +197,40 @@ server.add_middleware([](const HttpRequest& req, HttpResponse& res) {
               << " " << req.path() << std::endl;
     return true;
 });
+```
+
+### ETag Support
+
+The server supports HTTP ETag conditional requests for efficient caching:
+
+```cpp
+// Automatic ETag generation and conditional responses
+auto handler = [](const HttpRequest& request) -> HttpResponse {
+    // Use conditional file response for automatic ETag handling
+    return HttpResponse::conditional_file_response("./data/file.json", request);
+    // Returns:
+    // - 200 OK with content and ETag if file is new/modified
+    // - 304 Not Modified if client ETag matches (saves bandwidth)
+};
+
+// Manual ETag management
+HttpResponse response = HttpResponse::ok(content);
+response.set_etag("unique-content-hash");  // Strong ETag
+response.set_etag("version-123", true);     // Weak ETag (W/"version-123")
+
+// Check if request has conditional headers
+if (request.is_conditional_request()) {
+    auto if_none_match = request.get_if_none_match();
+    if (if_none_match && HttpResponse::etag_matches(etag, *if_none_match)) {
+        return HttpResponse(HttpStatus::NOT_MODIFIED)
+            .set_etag(etag)
+            .set_body("");  // Empty body for 304 responses
+    }
+}
+
+// ETag generation utilities
+std::string content_etag = HttpResponse::generate_etag(content);
+std::string file_etag = HttpResponse::generate_file_etag("./path/to/file");
 ```
 
 ### Compression Support
@@ -599,6 +637,7 @@ HttpServer server(config);
 | HttpsServerTest   | HTTPS/SSL testing    | SSL context, certificates, encrypted connections, HTTPS configuration    |
 | WebSocketTest     | WebSocket functionality | RFC 6455 compliance, frame handling, handshakes, connection management   |
 | RateLimiterTest   | Rate limiting functionality | Multiple algorithms, key extraction, middleware integration, abuse protection |
+| ETagTest          | ETag cache validation | ETag generation, conditional requests, HTTP 304 responses, cache headers |
 
 ### Running Tests
 
@@ -963,7 +1002,6 @@ This server has limitations compared to production servers:
 
 ### HTTP/1.1 Feature Gaps
 
-- **No ETag Support** - Missing ETag generation and conditional requests (If-None-Match, If-Modified-Since)
 - **No Range Requests** - Partial content delivery not implemented
 - **No Built-in Authentication** - Applications must implement custom auth schemes (server supports Authorization headers)
 
